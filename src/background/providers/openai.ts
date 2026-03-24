@@ -1,9 +1,9 @@
 import type { AnalysisResult } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 import { DEFAULT_API_URLS } from '@/shared/constants'
-import { buildSystemPrompt, buildBatchPrompt } from '@/shared/prompt'
+import { buildSystemPrompt, buildBatchPrompt, buildLiteBatchPrompt } from '@/shared/prompt'
 import type { LLMProvider } from './base'
-import { parseAnalysisResponse } from './base'
+import { parseLineResponse } from './base'
 
 export class OpenAIProvider implements LLMProvider {
   private baseUrl: string
@@ -19,8 +19,11 @@ export class OpenAIProvider implements LLMProvider {
   async analyze(
     notes: NoteInput[],
     sensitivity: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode: 'detailed' | 'lite' = 'detailed'
   ): Promise<AnalysisResult[]> {
+    const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
+
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: {
@@ -31,7 +34,7 @@ export class OpenAIProvider implements LLMProvider {
         model: this.model,
         messages: [
           { role: 'system', content: buildSystemPrompt(sensitivity) },
-          { role: 'user', content: buildBatchPrompt(notes) },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.1,
       }),
@@ -50,6 +53,6 @@ export class OpenAIProvider implements LLMProvider {
       throw new Error('OpenAI returned empty content')
     }
 
-    return parseAnalysisResponse(content, notes)
+    return parseLineResponse(content, notes)
   }
 }

@@ -43,25 +43,25 @@ describe('AnalysisQueue', () => {
     vi.useRealTimers()
   })
 
-  it('flushes immediately when batch size (5) is reached', () => {
+  it('flushes immediately when batch size (10) is reached', () => {
     const queue = new AnalysisQueue()
-    const notes = Array.from({ length: 5 }, (_, i) => makeNote(String(i)))
+    const notes = Array.from({ length: 10 }, (_, i) => makeNote(String(i)))
 
     queue.enqueue(notes)
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1)
     const msg = mockSendMessage.mock.calls[0][0] as { type: string; payload: { notes: unknown[] } }
     expect(msg.type).toBe('ANALYZE_NOTES')
-    expect(msg.payload.notes).toHaveLength(5)
+    expect(msg.payload.notes).toHaveLength(10)
   })
 
-  it('flushes after 2s timeout when batch not full', () => {
+  it('flushes after 500ms timeout when batch not full', () => {
     const queue = new AnalysisQueue()
     queue.enqueue([makeNote('a'), makeNote('b')])
 
     expect(mockSendMessage).not.toHaveBeenCalled()
 
-    vi.advanceTimersByTime(2000)
+    vi.advanceTimersByTime(500)
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1)
     const msg = mockSendMessage.mock.calls[0][0] as { type: string; payload: { notes: unknown[] } }
@@ -72,7 +72,7 @@ describe('AnalysisQueue', () => {
     const queue = new AnalysisQueue()
     queue.enqueue([makeNote('a')])
 
-    vi.advanceTimersByTime(2000)
+    vi.advanceTimersByTime(500)
     expect(mockSendMessage).toHaveBeenCalledTimes(1)
 
     // No more flushes should happen
@@ -82,7 +82,7 @@ describe('AnalysisQueue', () => {
 
   it('strips DOM element from sent payload (not serializable)', () => {
     const queue = new AnalysisQueue()
-    queue.enqueue(Array.from({ length: 5 }, (_, i) => makeNote(String(i))))
+    queue.enqueue(Array.from({ length: 10 }, (_, i) => makeNote(String(i))))
 
     const msg = mockSendMessage.mock.calls[0][0] as { payload: { notes: Array<Record<string, unknown>> } }
     for (const note of msg.payload.notes) {
@@ -92,17 +92,17 @@ describe('AnalysisQueue', () => {
 
   it('handles overflow beyond batch size by scheduling next flush', () => {
     const queue = new AnalysisQueue()
-    const notes = Array.from({ length: 7 }, (_, i) => makeNote(String(i)))
+    const notes = Array.from({ length: 13 }, (_, i) => makeNote(String(i)))
 
     queue.enqueue(notes)
 
-    // First batch of 5 fires immediately
+    // First batch of 10 fires immediately
     expect(mockSendMessage).toHaveBeenCalledTimes(1)
-    expect((mockSendMessage.mock.calls[0][0] as { payload: { notes: unknown[] } }).payload.notes).toHaveLength(5)
+    expect((mockSendMessage.mock.calls[0][0] as { payload: { notes: unknown[] } }).payload.notes).toHaveLength(10)
 
-    // Remaining 2 should flush after timeout
-    vi.advanceTimersByTime(2000)
+    // Remaining 3 should flush after timeout
+    vi.advanceTimersByTime(500)
     expect(mockSendMessage).toHaveBeenCalledTimes(2)
-    expect((mockSendMessage.mock.calls[1][0] as { payload: { notes: unknown[] } }).payload.notes).toHaveLength(2)
+    expect((mockSendMessage.mock.calls[1][0] as { payload: { notes: unknown[] } }).payload.notes).toHaveLength(3)
   })
 })

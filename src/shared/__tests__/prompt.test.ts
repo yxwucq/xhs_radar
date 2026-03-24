@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSystemPrompt, buildBatchPrompt } from '../prompt'
+import { buildSystemPrompt, buildBatchPrompt, buildLiteBatchPrompt } from '../prompt'
 import type { NoteInput } from '../messaging'
 
 const sampleNotes: NoteInput[] = [
@@ -25,36 +25,47 @@ describe('buildSystemPrompt', () => {
 
   it('includes all 5 low-quality categories', () => {
     const prompt = buildSystemPrompt(50)
-    expect(prompt).toContain('anxiety')
     expect(prompt).toContain('clickbait')
+    expect(prompt).toContain('anxiety')
     expect(prompt).toContain('misinformation')
     expect(prompt).toContain('hidden_ad')
     expect(prompt).toContain('emotional_manipulation')
   })
 })
 
-describe('buildBatchPrompt', () => {
-  it('includes all note titles with numbered indices', () => {
+describe('buildBatchPrompt (detailed)', () => {
+  it('includes numbered titles', () => {
     const prompt = buildBatchPrompt(sampleNotes)
-    expect(prompt).toContain('[1] 标题：震惊！这个方法让你一夜暴富')
-    expect(prompt).toContain('[2] 标题：周末去了趟京都，分享一些照片')
+    expect(prompt).toContain('1. 震惊！这个方法让你一夜暴富')
+    expect(prompt).toContain('2. 周末去了趟京都，分享一些照片')
   })
 
-  it('includes author names', () => {
+  it('requests line-based format with tag and reason', () => {
     const prompt = buildBatchPrompt(sampleNotes)
-    expect(prompt).toContain('作者：营销号')
-    expect(prompt).toContain('作者：旅行者')
+    expect(prompt).toContain('序号:OK')
+    expect(prompt).toContain('序号:LOW 类型 理由')
+  })
+})
+
+describe('buildLiteBatchPrompt', () => {
+  it('includes numbered titles', () => {
+    const prompt = buildLiteBatchPrompt(sampleNotes)
+    expect(prompt).toContain('1. 震惊！这个方法让你一夜暴富')
+    expect(prompt).toContain('2. 周末去了趟京都，分享一些照片')
   })
 
-  it('includes the note count', () => {
-    const prompt = buildBatchPrompt(sampleNotes)
-    expect(prompt).toContain('2 条小红书笔记')
+  it('requests only LOW/OK format', () => {
+    const prompt = buildLiteBatchPrompt(sampleNotes)
+    expect(prompt).toContain('序号:OK')
+    expect(prompt).toContain('序号:LOW')
+    // Should NOT ask for tags or reason
+    expect(prompt).not.toContain('类型')
+    expect(prompt).not.toContain('理由')
   })
 
-  it('requests JSON array format', () => {
-    const prompt = buildBatchPrompt(sampleNotes)
-    expect(prompt).toContain('"index"')
-    expect(prompt).toContain('"score"')
-    expect(prompt).toContain('"tags"')
+  it('is shorter than detailed prompt', () => {
+    const detailed = buildBatchPrompt(sampleNotes)
+    const lite = buildLiteBatchPrompt(sampleNotes)
+    expect(lite.length).toBeLessThan(detailed.length)
   })
 })

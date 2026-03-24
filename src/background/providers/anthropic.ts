@@ -1,9 +1,9 @@
 import type { AnalysisResult } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 import { DEFAULT_API_URLS } from '@/shared/constants'
-import { buildSystemPrompt, buildBatchPrompt } from '@/shared/prompt'
+import { buildSystemPrompt, buildBatchPrompt, buildLiteBatchPrompt } from '@/shared/prompt'
 import type { LLMProvider } from './base'
-import { parseAnalysisResponse } from './base'
+import { parseLineResponse } from './base'
 
 export class AnthropicProvider implements LLMProvider {
   private baseUrl: string
@@ -19,8 +19,11 @@ export class AnthropicProvider implements LLMProvider {
   async analyze(
     notes: NoteInput[],
     sensitivity: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode: 'detailed' | 'lite' = 'detailed'
   ): Promise<AnalysisResult[]> {
+    const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
+
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: {
@@ -34,7 +37,7 @@ export class AnthropicProvider implements LLMProvider {
         max_tokens: 1024,
         system: buildSystemPrompt(sensitivity),
         messages: [
-          { role: 'user', content: buildBatchPrompt(notes) },
+          { role: 'user', content: userPrompt },
         ],
       }),
       signal,
@@ -52,6 +55,6 @@ export class AnthropicProvider implements LLMProvider {
       throw new Error('Anthropic returned empty content')
     }
 
-    return parseAnalysisResponse(content, notes)
+    return parseLineResponse(content, notes)
   }
 }

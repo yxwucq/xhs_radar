@@ -3,6 +3,7 @@ import type { UserConfig, SessionStats, AnalysisResult } from '@/shared/types'
 import { DEFAULT_CONFIG } from '@/shared/constants'
 import { LLMGateway } from './llm-gateway'
 import { AnalysisCache } from './cache'
+import { analyzeByKeywords } from './keyword-analyzer'
 
 const LOG_PREFIX = '[XHS Radar BG]'
 
@@ -104,49 +105,63 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
 
 async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
   if (!config.enabled) return []
-  if (!config.apiKey) {
-    console.warn(LOG_PREFIX, 'No API key set, skipping analysis')
-    return []
-  }
 
   stats.scanned += notes.length
 
-  // Check cache first
-  const cached = cache.getMany(notes.map(n => n.noteId))
-  const uncached = notes.filter(n => !cached.has(n.noteId))
+  // ── Layer 1: Keyword pre-filter (instant, always active) ──
+  const keywordResults = analyzeByKeywords(notes, config.keywordList)
+  const keywordHits: AnalysisResult[] = []
+  const passedNotes: NoteInput[] = []
 
-  stats.cacheHits += cached.size
-
-  if (cached.size > 0) {
-    console.log(LOG_PREFIX, `Cache hit: ${cached.size}/${notes.length}`)
+  for (let i = 0; i < notes.length; i++) {
+    if (keywordResults[i].isLowQuality) {
+      keywordHits.push(keywordResults[i])
+    } else {
+      passedNotes.push(notes[i])
+    }
   }
 
-  // Only call LLM for uncached notes
+  if (keywordHits.length > 0) {
+    console.log(LOG_PREFIX, `Keyword pre-filter: ${keywordHits.length} hit, ${passedNotes.length} to LLM`)
+    await cache.set(keywordHits)
+    stats.marked += keywordHits.length
+  }
+
+  // ── Layer 2: LLM analysis on remaining notes ──
+  if (passedNotes.length === 0 || !config.apiKey) {
+    if (passedNotes.length > 0 && !config.apiKey) {
+      console.log(LOG_PREFIX, 'No API key set, skipping LLM analysis')
+    }
+    return [...keywordHits, ...passedNotes.map(n => ({
+      noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: '',
+    }))]
+  }
+
+  // Check cache
+  const cached = cache.getMany(passedNotes.map(n => n.noteId))
+  const uncached = passedNotes.filter(n => !cached.has(n.noteId))
+  stats.cacheHits += cached.size
+
+  // Call LLM for uncached
   let freshResults: AnalysisResult[] = []
   if (uncached.length > 0) {
     stats.apiCalls++
-    freshResults = await gateway.analyze(uncached, config.sensitivity)
-    // Write fresh results to cache
+    freshResults = await gateway.analyze(uncached, config.sensitivity, config.analysisMode)
     await cache.set(freshResults)
   }
 
-  // Merge cached + fresh results
-  const allResults: AnalysisResult[] = notes.map(n => {
+  // Merge all results
+  const llmResults: AnalysisResult[] = passedNotes.map(n => {
     const hit = cached.get(n.noteId)
     if (hit) return hit
     return freshResults.find(r => r.noteId === n.noteId) ?? {
-      noteId: n.noteId,
-      score: 75,
-      isLowQuality: false,
-      tags: [],
-      reason: '分析失败',
+      noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: '分析失败',
     }
   })
 
-  const markedCount = allResults.filter(r => r.isLowQuality).length
-  stats.marked += markedCount
+  stats.marked += llmResults.filter(r => r.isLowQuality).length
 
-  return allResults
+  return [...keywordHits, ...llmResults]
 }
 
 chrome.runtime.onInstalled.addListener((details) => {

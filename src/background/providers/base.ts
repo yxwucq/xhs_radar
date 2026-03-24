@@ -1,22 +1,14 @@
 import type { AnalysisResult, LowQualityTag } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 
-/** Raw LLM response item before validation */
-interface RawResultItem {
-  index: number
-  score: number
-  is_low_quality: boolean
-  tags: string[]
-  reason: string
-}
-
 /** Interface all LLM providers must implement */
 export interface LLMProvider {
   /** Analyze a batch of notes and return quality assessments */
   analyze(
     notes: NoteInput[],
     sensitivity: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode?: 'detailed' | 'lite'
   ): Promise<AnalysisResult[]>
 }
 
@@ -25,48 +17,55 @@ const VALID_TAGS = new Set<string>([
 ])
 
 /**
- * Parse and validate the LLM JSON response into AnalysisResult[].
- * Handles common LLM response quirks (markdown fences, trailing commas, etc).
+ * Parse line-based LLM response into AnalysisResult[].
+ *
+ * Handles both detailed and lite formats:
+ *   Lite:     "1:OK"  or  "2:LOW"
+ *   Detailed: "1:OK"  or  "2:LOW clickbait 标题夸张诱导点击"
  */
-export function parseAnalysisResponse(
+export function parseLineResponse(
   raw: string,
   notes: NoteInput[]
 ): AnalysisResult[] {
-  // Extract JSON from LLM response — strip markdown fences, find array
-  let cleaned = raw.trim()
-  // Strip markdown code fences (any number of backticks)
-  cleaned = cleaned.replace(/^`{3,}\w*\s*/, '').replace(/\s*`{3,}\s*$/, '')
-  // Extract the JSON array substring as a last resort
-  const arrStart = cleaned.indexOf('[')
-  const arrEnd = cleaned.lastIndexOf(']')
-  if (arrStart !== -1 && arrEnd > arrStart) {
-    cleaned = cleaned.slice(arrStart, arrEnd + 1)
-  }
+  const lines = raw.trim().split('\n')
+  const parsed = new Map<number, { isLow: boolean; tag: string; reason: string }>()
 
-  let parsed: RawResultItem[]
-  try {
-    const value = JSON.parse(cleaned)
-    parsed = Array.isArray(value) ? value : [value]
-  } catch {
-    console.log('[XHS Radar] Failed to parse LLM response:', raw.slice(0, 200))
-    return notes.map(n => fallbackResult(n.noteId))
+  for (const line of lines) {
+    // Match: "2:LOW clickbait 标题夸张" or "2:LOW" or "1:OK"
+    const match = line.match(/(\d+)\s*[:：]\s*(LOW|OK)(?:\s+(\S+))?(?:\s+(.+))?/i)
+    if (!match) continue
+
+    const index = parseInt(match[1])
+    const isLow = match[2].toUpperCase() === 'LOW'
+    const tag = match[3] ?? ''
+    const reason = match[4]?.trim() ?? ''
+    parsed.set(index, { isLow, tag, reason })
   }
 
   return notes.map((note, i) => {
-    const item = parsed.find(r => r.index === i + 1) ?? parsed[i]
-    if (!item || typeof item.score !== 'number') {
-      return fallbackResult(note.noteId)
+    const entry = parsed.get(i + 1)
+    if (!entry) return fallbackResult(note.noteId)
+
+    if (!entry.isLow) {
+      return {
+        noteId: note.noteId,
+        score: 80,
+        isLowQuality: false,
+        tags: [],
+        reason: '',
+      }
     }
 
-    const score = Math.max(0, Math.min(100, Math.round(item.score)))
-    const tags = (item.tags ?? []).filter(t => VALID_TAGS.has(t)) as LowQualityTag[]
+    const tags: LowQualityTag[] = VALID_TAGS.has(entry.tag)
+      ? [entry.tag as LowQualityTag]
+      : []
 
     return {
       noteId: note.noteId,
-      score,
-      isLowQuality: score < 40,
+      score: 20,
+      isLowQuality: true,
       tags,
-      reason: typeof item.reason === 'string' ? item.reason.slice(0, 30) : '',
+      reason: entry.reason.slice(0, 30),
     }
   })
 }
@@ -78,6 +77,6 @@ function fallbackResult(noteId: string): AnalysisResult {
     score: 75,
     isLowQuality: false,
     tags: [],
-    reason: '分析失败，默认放行',
+    reason: '',
   }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { UserConfig, LowQualityTag } from '@/shared/types'
+import type { UserConfig, LowQualityTag, AnalysisMode } from '@/shared/types'
 import { DEFAULT_CONFIG, DEFAULT_API_URLS, SUGGESTED_MODELS, TAG_LABELS } from '@/shared/constants'
 
 const ALL_TAGS: LowQualityTag[] = [
@@ -70,6 +70,45 @@ export default function App() {
       <p className="text-sm text-gray-500 mb-8">Settings</p>
 
       <div className="space-y-6">
+        {/* Analysis Mode */}
+        <Field label="Analysis Mode">
+          <div className="flex gap-4">
+            {([
+              ['detailed', '详细模式', 'LLM 返回评分、标签和理由'],
+              ['lite', '精简模式', 'LLM 只返回 LOW/OK，更快更省'],
+            ] as const).map(([mode, label, desc]) => (
+              <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="analysisMode"
+                  value={mode}
+                  checked={config.analysisMode === mode}
+                  onChange={() => updateField('analysisMode', mode as AnalysisMode)}
+                  className="accent-red-500"
+                />
+                <span className="text-sm font-medium">{label}</span>
+                <span className="text-xs text-gray-400">({desc})</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        {/* Keyword Pre-filter (always active) */}
+        <Field label="Keyword Pre-filter">
+          <textarea
+            value={config.keywordList.join('\n')}
+            onChange={e => updateField('keywordList',
+              e.target.value.split('\n').map(s => s.trim()).filter(Boolean)
+            )}
+            rows={6}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent font-mono"
+            placeholder={'震惊\n必看\n不看后悔\n...'}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            前置过滤：标题命中关键词直接标记，不调 API。未命中的再交给 LLM。
+          </p>
+        </Field>
+
         {/* Provider */}
         <Field label="API Protocol">
           <div className="flex gap-4">
@@ -141,7 +180,6 @@ export default function App() {
           </p>
         </Field>
 
-        {/* Sensitivity */}
         <Field label={`Sensitivity: ${config.sensitivity}`}>
           <input
             type="range"

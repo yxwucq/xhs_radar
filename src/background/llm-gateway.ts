@@ -49,6 +49,7 @@ export class LLMGateway {
   private queue: Array<{
     notes: NoteInput[]
     sensitivity: number
+    mode: 'detailed' | 'lite'
     resolve: (results: AnalysisResult[]) => void
     reject: (error: Error) => void
   }> = []
@@ -82,13 +83,13 @@ export class LLMGateway {
     console.log(LOG_PREFIX, `Provider updated: ${config.llmProvider} / ${config.model}`)
   }
 
-  analyze(notes: NoteInput[], sensitivity: number): Promise<AnalysisResult[]> {
+  analyze(notes: NoteInput[], sensitivity: number, mode: 'detailed' | 'lite' = 'detailed'): Promise<AnalysisResult[]> {
     if (!this.provider) {
       return Promise.reject(new Error('LLM provider not configured. Set your API key in settings.'))
     }
 
     return new Promise((resolve, reject) => {
-      this.queue.push({ notes, sensitivity, resolve, reject })
+      this.queue.push({ notes, sensitivity, mode, resolve, reject })
       this.processQueue()
     })
   }
@@ -97,7 +98,7 @@ export class LLMGateway {
     while (this.activeRequests < MAX_CONCURRENT && this.queue.length > 0) {
       const item = this.queue.shift()!
       this.activeRequests++
-      this.executeWithRetry(item.notes, item.sensitivity, 0)
+      this.executeWithRetry(item.notes, item.sensitivity, item.mode, 0)
         .then(item.resolve)
         .catch(item.reject)
         .finally(() => {
@@ -110,6 +111,7 @@ export class LLMGateway {
   private async executeWithRetry(
     notes: NoteInput[],
     sensitivity: number,
+    mode: 'detailed' | 'lite',
     attempt: number
   ): Promise<AnalysisResult[]> {
     const controller = new AbortController()
@@ -117,7 +119,7 @@ export class LLMGateway {
 
     try {
       console.log(LOG_PREFIX, `Analyzing ${notes.length} note(s)${attempt > 0 ? ` (retry ${attempt})` : ''}...`)
-      const results = await this.provider!.analyze(notes, sensitivity, controller.signal)
+      const results = await this.provider!.analyze(notes, sensitivity, controller.signal, mode)
       console.log(LOG_PREFIX, `Analysis complete for ${notes.length} note(s)`)
       return results
     } catch (error) {
@@ -138,7 +140,7 @@ export class LLMGateway {
         const delay = 1000 * 2 ** attempt // 1s, 2s
         console.warn(LOG_PREFIX, `Retryable error, waiting ${delay}ms:`, (error as Error).message)
         await new Promise(r => setTimeout(r, delay))
-        return this.executeWithRetry(notes, sensitivity, attempt + 1)
+        return this.executeWithRetry(notes, sensitivity, mode, attempt + 1)
       }
 
       // Unknown error — return fallback, don't crash

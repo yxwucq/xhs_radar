@@ -34,10 +34,14 @@ export type RiskLevel = 'high' | 'medium' | 'normal'
 /** Display mode for marking low-quality content */
 export type FilterMode = 'blur' | 'vanish'
 
+/** LLM analysis mode — detailed (full JSON) or lite (LOW/OK) */
+export type AnalysisMode = 'detailed' | 'lite'
+
 /** User configuration stored in chrome.storage.local */
 export interface UserConfig {
   enabled: boolean
   filterMode: FilterMode
+  analysisMode: AnalysisMode
   llmProvider: 'openai' | 'anthropic'
   apiKey: string
   /** Custom API base URL. Empty string means use official endpoint. */
@@ -45,6 +49,8 @@ export interface UserConfig {
   model: string
   sensitivity: number
   enabledTags: LowQualityTag[]
+  /** Keywords for keyword mode (matched against note titles) */
+  keywordList: string[]
 }
 
 /** Runtime stats stored in chrome.storage.session */

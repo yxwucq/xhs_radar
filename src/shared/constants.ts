@@ -97,10 +97,21 @@ export const SUGGESTED_MODELS = {
   anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
 } as const
 
+/** Default keyword list for keyword mode */
+export const DEFAULT_KEYWORDS: string[] = [
+  '震惊', '必看', '不看后悔', '速看', '赶紧收藏',
+  '一夜暴富', '月入过万', '躺赚', '年薪百万',
+  '99%的人不知道', '建议收藏', '太可怕了',
+  '容貌焦虑', '身材焦虑', '年龄焦虑',
+  '这都不知道', '再不看就晚了', '删前快看',
+  '千万别', '万万没想到',
+]
+
 /** Default user configuration */
 export const DEFAULT_CONFIG: UserConfig = {
   enabled: true,
   filterMode: 'blur',
+  analysisMode: 'detailed' as const,
   llmProvider: 'openai',
   apiKey: '',
   apiBaseUrl: '',
@@ -113,4 +124,5 @@ export const DEFAULT_CONFIG: UserConfig = {
     'hidden_ad',
     'emotional_manipulation',
   ],
+  keywordList: [...DEFAULT_KEYWORDS],
 }
