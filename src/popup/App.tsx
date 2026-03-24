@@ -48,21 +48,38 @@ export default function App() {
   }
 
   return (
-    <div className="p-4 w-80">
-      {/* Header + Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-base font-bold text-gray-800 leading-tight">XHS Radar</h1>
-          <p className="text-xs text-gray-400">内容质量雷达</p>
+    <div className="p-5 font-body">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-2xl bg-amber-light flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4845A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="3"/>
+              <line x1="12" y1="2" x2="12" y2="5"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+              <line x1="2" y1="12" x2="5" y2="12"/>
+              <line x1="19" y1="12" x2="22" y2="12"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-serif text-base font-semibold text-bark leading-tight tracking-tight">
+              Content Radar
+            </h1>
+            <p className="text-[10px] text-muted leading-tight mt-0.5">
+              {enabled ? '守护中' : '已暂停'}
+            </p>
+          </div>
         </div>
+
         <button
           onClick={handleToggle}
-          className={`relative w-11 h-6 rounded-full transition-colors ${
-            enabled ? 'bg-red-500' : 'bg-gray-300'
+          className={`toggle-track relative w-11 h-6 rounded-full ${
+            enabled ? 'bg-amber-warm' : 'bg-sand'
           }`}
         >
           <span
-            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+            className={`toggle-knob absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-soft ${
               enabled ? 'translate-x-5' : ''
             }`}
           />
@@ -71,10 +88,13 @@ export default function App() {
 
       {/* API Key Warning */}
       {!hasApiKey && (
-        <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs text-amber-700">
+        <div className="mb-4 p-3 bg-amber-light rounded-2xl border border-amber-warm/20">
+          <p className="text-xs text-bark/70">
             请先设置 API Key
-            <button onClick={openSettings} className="ml-1 underline font-medium">
+            <button
+              onClick={openSettings}
+              className="ml-1 text-amber-warm font-medium underline underline-offset-2 decoration-amber-warm/40 hover:decoration-amber-warm"
+            >
               前往设置
             </button>
           </p>
@@ -83,18 +103,14 @@ export default function App() {
 
       {/* Mode Switch */}
       {enabled && (
-        <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg mb-4">
+        <div className="pill-group flex mb-4">
           {(['blur', 'vanish'] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => handleModeSwitch(mode)}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                filterMode === mode
-                  ? 'bg-white text-gray-800 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`pill-btn flex-1 ${filterMode === mode ? 'active' : ''}`}
             >
-              {mode === 'blur' ? 'Blur Mode' : 'Vanish Mode'}
+              {mode === 'blur' ? '模糊模式' : '隐藏模式'}
             </button>
           ))}
         </div>
@@ -102,23 +118,24 @@ export default function App() {
 
       {/* Stats */}
       {enabled && stats && (
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
           <StatCard label="已扫描" value={stats.scanned} />
-          <StatCard label="已标记" value={stats.marked} color="text-red-500" />
+          <StatCard label="已标记" value={stats.marked} accent />
           <StatCard label="缓存命中" value={stats.cacheHits} />
           <StatCard label="API 调用" value={stats.apiCalls} />
-          {stats.errors > 0 && (
-            <StatCard label="错误" value={stats.errors} color="text-amber-500" />
-          )}
         </div>
       )}
 
       {/* Settings Link */}
       <button
         onClick={openSettings}
-        className="w-full py-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+        className="w-full py-2.5 text-xs text-muted hover:text-bark rounded-xl hover:bg-sand/50 transition-all duration-200 flex items-center justify-center gap-1.5"
       >
-        Settings
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+        设置
       </button>
     </div>
   )
@@ -127,16 +144,20 @@ export default function App() {
 function StatCard({
   label,
   value,
-  color = 'text-gray-800',
+  accent = false,
 }: {
   label: string
   value: number
-  color?: string
+  accent?: boolean
 }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-2">
-      <div className={`text-lg font-semibold ${color} leading-tight`}>{value}</div>
-      <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+    <div className="stat-card bg-white rounded-2xl p-3 shadow-card">
+      <div className={`text-xl font-serif font-semibold leading-tight ${
+        accent ? 'text-coral' : 'text-bark'
+      }`}>
+        {value}
+      </div>
+      <div className="text-[10px] text-muted mt-1 tracking-wide uppercase">{label}</div>
     </div>
   )
 }

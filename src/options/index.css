@@ -4,5 +4,117 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #FBF8F4;
+  color: #3D3529;
+  min-height: 100vh;
+}
+
+/* Form inputs */
+.input-field {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #EDE8E1;
+  border-radius: 12px;
+  font-size: 13px;
+  background: white;
+  color: #3D3529;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #D4845A;
+  box-shadow: 0 0 0 3px rgba(212, 132, 90, 0.1);
+}
+.input-field::placeholder {
+  color: #C4BDB4;
+}
+.input-field.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+}
+
+/* Radio & Checkbox */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: #D4845A;
+}
+
+/* Range slider */
+input[type="range"] {
+  accent-color: #D4845A;
+}
+
+/* Section card */
+.section-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 8px rgba(61, 53, 41, 0.04);
+}
+
+/* Button */
+.btn-primary {
+  padding: 10px 28px;
+  background: #D4845A;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: #C07348;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 132, 90, 0.25);
+}
+.btn-secondary {
+  padding: 10px 20px;
+  background: transparent;
+  color: #9A9084;
+  border: 1.5px solid #EDE8E1;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  border-color: #D4845A;
+  color: #D4845A;
+}
+
+/* Tag chip */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1.5px solid #EDE8E1;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  color: #9A9084;
+  background: white;
+}
+.tag-chip:hover {
+  border-color: #D4845A;
+}
+.tag-chip.selected {
+  background: #F2DDD0;
+  border-color: #D4845A;
+  color: #3D3529;
+}
+
+/* Saved toast animation */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast {
+  animation: toast-in 0.3s ease;
 }
