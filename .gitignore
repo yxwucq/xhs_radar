@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# HTML snapshots (contain real XHS page data)
+fixtures/*.html
+
+# CCUI data
+.ccui/
+*.db
+*.db-shm
+*.db-wal
