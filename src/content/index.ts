@@ -12,6 +12,8 @@ const LOG_PREFIX = '[XHS Radar]'
 const cardMap = new Map<string, HTMLElement>()
 /** noteId → analysis result (for re-rendering on mode switch) */
 const resultMap = new Map<string, AnalysisResult>()
+/** noteId → desc from feed API (populated by interceptor) */
+const descCache = new Map<string, string>()
 
 let enabled = true
 let filterMode: FilterMode = 'blur'
@@ -104,6 +106,10 @@ const queue = new AnalysisQueue()
 function handleNewNotes(notes: NoteData[]): void {
   if (!enabled || dead) return
   for (const note of notes) {
+    // Enrich with desc from feed API interceptor
+    if (!note.content && descCache.has(note.noteId)) {
+      note.content = descCache.get(note.noteId)!
+    }
     cardMap.set(note.noteId, note.element)
     setCardStatus(note.element, 'pending', note.title)
   }
