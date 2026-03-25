@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseLineResponse } from '../providers/base'
+import { parseLineResponse, parseSingleLine } from '../providers/base'
 import type { NoteInput } from '@/shared/messaging'
 
 const notes: NoteInput[] = [
@@ -86,5 +86,32 @@ describe('parseLineResponse', () => {
     expect(results[0].isLowQuality).toBe(false)
     expect(results[1].isLowQuality).toBe(true)
     expect(results[1].tags).toEqual(['clickbait'])
+  })
+})
+
+describe('parseSingleLine', () => {
+  it('parses OK line', () => {
+    const result = parseSingleLine('1:OK', notes)
+    expect(result).toMatchObject({ noteId: 'aaa', isLowQuality: false, score: 80 })
+  })
+
+  it('parses LOW line with tag and reason', () => {
+    const result = parseSingleLine('2:LOW anxiety 贩卖焦虑', notes)
+    expect(result).toMatchObject({ noteId: 'bbb', isLowQuality: true, score: 20, tags: ['anxiety'] })
+    expect(result?.reason).toBe('贩卖焦虑')
+  })
+
+  it('returns null for invalid line', () => {
+    expect(parseSingleLine('garbage', notes)).toBeNull()
+    expect(parseSingleLine('', notes)).toBeNull()
+  })
+
+  it('returns null for out-of-range index', () => {
+    expect(parseSingleLine('99:OK', notes)).toBeNull()
+  })
+
+  it('handles Chinese colon', () => {
+    const result = parseSingleLine('1：LOW clickbait 诱导', notes)
+    expect(result?.isLowQuality).toBe(true)
   })
 })

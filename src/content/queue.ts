@@ -2,18 +2,24 @@ import type { NoteData } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 
 const LOG_PREFIX = '[XHS Radar Queue]'
-const BATCH_SIZE = 20
-const FLUSH_DELAY_MS = 500
+
+// First flush: small + fast for immediate feedback
+const FIRST_BATCH_SIZE = 5
+const FIRST_FLUSH_DELAY_MS = 200
+// Subsequent flushes: larger batches, fewer API calls
+const NORMAL_BATCH_SIZE = 20
+const NORMAL_FLUSH_DELAY_MS = 500
 
 /**
  * Batch queue for notes pending LLM analysis.
- * Accumulates notes and flushes when batch size reached or timeout fires.
- * Uses fire-and-forget messaging — background pushes results back separately.
+ * First flush is small and fast (5 notes, 200ms) for immediate feedback.
+ * Subsequent flushes use larger batches (20 notes, 500ms) to reduce API calls.
  */
 export class AnalysisQueue {
   private pending: NoteData[] = []
   private timer: ReturnType<typeof setTimeout> | null = null
   private stopped = false
+  private flushedOnce = false
 
   /** Add notes to the queue. May trigger an immediate flush. */
   enqueue(notes: NoteData[]): void {
@@ -21,10 +27,13 @@ export class AnalysisQueue {
     this.pending.push(...notes)
     console.debug(LOG_PREFIX, `Queued ${notes.length} note(s), pending: ${this.pending.length}`)
 
-    if (this.pending.length >= BATCH_SIZE) {
+    const batchSize = this.flushedOnce ? NORMAL_BATCH_SIZE : FIRST_BATCH_SIZE
+    const delay = this.flushedOnce ? NORMAL_FLUSH_DELAY_MS : FIRST_FLUSH_DELAY_MS
+
+    if (this.pending.length >= batchSize) {
       this.flush()
     } else if (!this.timer) {
-      this.timer = setTimeout(() => this.flush(), FLUSH_DELAY_MS)
+      this.timer = setTimeout(() => this.flush(), delay)
     }
   }
 
@@ -37,7 +46,8 @@ export class AnalysisQueue {
 
     if (this.stopped || this.pending.length === 0) return
 
-    const batch = this.pending.splice(0, BATCH_SIZE)
+    const batchSize = this.flushedOnce ? NORMAL_BATCH_SIZE : FIRST_BATCH_SIZE
+    const batch = this.pending.splice(0, batchSize)
     const inputs: NoteInput[] = batch.map(toNoteInput)
 
     console.log(LOG_PREFIX, `Flushing ${inputs.length} note(s) to background`)
@@ -53,9 +63,11 @@ export class AnalysisQueue {
       return
     }
 
+    this.flushedOnce = true
+
     // If there are still pending notes, schedule another flush
     if (this.pending.length > 0) {
-      this.timer = setTimeout(() => this.flush(), FLUSH_DELAY_MS)
+      this.timer = setTimeout(() => this.flush(), NORMAL_FLUSH_DELAY_MS)
     }
   }
 

@@ -1,6 +1,6 @@
 import type { AnalysisResult, UserConfig } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
-import type { LLMProvider, AnalyzeOptions } from './providers/base'
+import type { LLMProvider, AnalyzeOptions, OnPartialResult } from './providers/base'
 import { OpenAIProvider } from './providers/openai'
 import { AnthropicProvider } from './providers/anthropic'
 
@@ -19,9 +19,6 @@ function fallbackResults(notes: NoteInput[], reason: string): AnalysisResult[] {
   }))
 }
 
-/**
- * Check if an error is a rate limit (429) or server error (5xx) that warrants retry.
- */
 function isRetryable(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message
@@ -31,9 +28,6 @@ function isRetryable(error: unknown): boolean {
   return false
 }
 
-/**
- * Check if an error indicates an invalid API key (401/403).
- */
 function isAuthError(error: unknown): boolean {
   if (error instanceof Error) {
     return error.message.includes('401') || error.message.includes('403')
@@ -41,15 +35,13 @@ function isAuthError(error: unknown): boolean {
   return false
 }
 
-/**
- * LLM Gateway — manages provider instantiation, concurrency, timeouts, and retries.
- */
 export class LLMGateway {
   private activeRequests = 0
   private queue: Array<{
     notes: NoteInput[]
     sensitivity: number
     options: AnalyzeOptions
+    onPartialResult?: OnPartialResult
     resolve: (results: AnalysisResult[]) => void
     reject: (error: Error) => void
   }> = []
@@ -69,7 +61,7 @@ export class LLMGateway {
       return
     }
 
-    const baseUrl = config.apiBaseUrl || undefined // empty string → use default
+    const baseUrl = config.apiBaseUrl || undefined
 
     switch (config.llmProvider) {
       case 'openai':
@@ -83,13 +75,18 @@ export class LLMGateway {
     console.log(LOG_PREFIX, `Provider updated: ${config.llmProvider} / ${config.model}`)
   }
 
-  analyze(notes: NoteInput[], sensitivity: number, options: AnalyzeOptions = {}): Promise<AnalysisResult[]> {
+  analyze(
+    notes: NoteInput[],
+    sensitivity: number,
+    options: AnalyzeOptions = {},
+    onPartialResult?: OnPartialResult
+  ): Promise<AnalysisResult[]> {
     if (!this.provider) {
       return Promise.reject(new Error('LLM provider not configured. Set your API key in settings.'))
     }
 
     return new Promise((resolve, reject) => {
-      this.queue.push({ notes, sensitivity, options, resolve, reject })
+      this.queue.push({ notes, sensitivity, options, onPartialResult, resolve, reject })
       this.processQueue()
     })
   }
@@ -98,7 +95,7 @@ export class LLMGateway {
     while (this.activeRequests < MAX_CONCURRENT && this.queue.length > 0) {
       const item = this.queue.shift()!
       this.activeRequests++
-      this.executeWithRetry(item.notes, item.sensitivity, item.options, 0)
+      this.executeWithRetry(item.notes, item.sensitivity, item.options, item.onPartialResult, 0)
         .then(item.resolve)
         .catch(item.reject)
         .finally(() => {
@@ -112,6 +109,7 @@ export class LLMGateway {
     notes: NoteInput[],
     sensitivity: number,
     options: AnalyzeOptions,
+    onPartialResult: OnPartialResult | undefined,
     attempt: number
   ): Promise<AnalysisResult[]> {
     const controller = new AbortController()
@@ -119,31 +117,39 @@ export class LLMGateway {
 
     try {
       console.log(LOG_PREFIX, `Analyzing ${notes.length} note(s)${attempt > 0 ? ` (retry ${attempt})` : ''}...`)
-      const results = await this.provider!.analyze(notes, sensitivity, controller.signal, options)
+
+      let results: AnalysisResult[]
+
+      // Use streaming if provider supports it and we have a callback (first attempt only)
+      if (onPartialResult && attempt === 0 && this.provider!.analyzeStream) {
+        results = await this.provider!.analyzeStream(
+          notes, sensitivity, controller.signal, options, onPartialResult
+        )
+      } else {
+        results = await this.provider!.analyze(notes, sensitivity, controller.signal, options)
+      }
+
       console.log(LOG_PREFIX, `Analysis complete for ${notes.length} note(s)`)
       return results
     } catch (error) {
-      // Timeout — don't retry, return fallback
       if (error instanceof DOMException && error.name === 'AbortError') {
         console.warn(LOG_PREFIX, `Request timed out after ${TIMEOUT_MS}ms`)
         return fallbackResults(notes, '分析超时，默认放行')
       }
 
-      // Auth error — don't retry, it won't help
       if (isAuthError(error)) {
         console.log(LOG_PREFIX, 'API key invalid or unauthorized:', (error as Error).message)
         return fallbackResults(notes, 'API Key 无效')
       }
 
-      // Rate limit / server error — retry with exponential backoff
+      // Retry without streaming (partial results may have been pushed already)
       if (isRetryable(error) && attempt < MAX_RETRIES) {
-        const delay = 1000 * 2 ** attempt // 1s, 2s
+        const delay = 1000 * 2 ** attempt
         console.warn(LOG_PREFIX, `Retryable error, waiting ${delay}ms:`, (error as Error).message)
         await new Promise(r => setTimeout(r, delay))
-        return this.executeWithRetry(notes, sensitivity, options, attempt + 1)
+        return this.executeWithRetry(notes, sensitivity, options, undefined, attempt + 1)
       }
 
-      // Unknown error — return fallback, don't crash
       console.log(LOG_PREFIX, 'Analysis failed:', error)
       return fallbackResults(notes, '分析失败，默认放行')
     } finally {

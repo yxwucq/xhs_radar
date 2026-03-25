@@ -51,20 +51,8 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
   switch (message.type) {
     case 'ANALYZE_NOTES': {
       const tabId = sender.tab?.id
-      // Acknowledge immediately — closes message channel, no timeout risk
       sendResponse({ received: true })
-      // Process async, push results back to tab when done
-      handleAnalyze(message.payload.notes)
-        .then(results => {
-          if (tabId != null) {
-            chrome.tabs.sendMessage(tabId, {
-              type: 'ANALYZE_RESULT',
-              payload: { results },
-            }).catch(err => {
-              console.warn(LOG_PREFIX, 'Failed to send results to tab:', err)
-            })
-          }
-        })
+      handleAnalyze(message.payload.notes, tabId ?? undefined)
         .catch(err => {
           console.log(LOG_PREFIX, 'Analysis failed:', err)
           stats.errors++
@@ -103,12 +91,21 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
   }
 })
 
-async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
-  if (!config.enabled) return []
+/** Push results to a tab */
+function pushToTab(tabId: number, results: AnalysisResult[]): void {
+  if (results.length === 0) return
+  chrome.tabs.sendMessage(tabId, {
+    type: 'ANALYZE_RESULT',
+    payload: { results },
+  }).catch(() => {})
+}
+
+async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> {
+  if (!config.enabled) return
 
   stats.scanned += notes.length
 
-  // ── Layer 1: Keyword pre-filter (instant, always active) ──
+  // ── Layer 1: Keyword pre-filter (instant, push immediately) ──
   const keywordResults = analyzeByKeywords(notes, config.keywordRules, config.enabledTags, config.customRules)
   const keywordHits: AnalysisResult[] = []
   const passedNotes: NoteInput[] = []
@@ -125,47 +122,55 @@ async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
     console.log(LOG_PREFIX, `Keyword pre-filter: ${keywordHits.length} hit, ${passedNotes.length} to LLM`)
     await cache.set(keywordHits)
     stats.marked += keywordHits.length
+    if (tabId != null) pushToTab(tabId, keywordHits)
   }
 
-  // ── Layer 2: LLM analysis on remaining notes ──
+  // ── Layer 2: Cache hits (push immediately) ──
   if (passedNotes.length === 0 || !config.apiKey) {
     if (passedNotes.length > 0 && !config.apiKey) {
       console.log(LOG_PREFIX, 'No API key set, skipping LLM analysis')
     }
     const noKeyReason = !config.apiKey ? 'API Key 未设置，跳过分析' : ''
-    return [...keywordHits, ...passedNotes.map(n => ({
+    const skipped = passedNotes.map(n => ({
       noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: noKeyReason,
-    }))]
+    }))
+    if (tabId != null) pushToTab(tabId, skipped)
+    return
   }
 
-  // Check cache
   const cached = cache.getMany(passedNotes.map(n => n.noteId))
   const uncached = passedNotes.filter(n => !cached.has(n.noteId))
   stats.cacheHits += cached.size
 
-  // Call LLM for uncached
-  let freshResults: AnalysisResult[] = []
-  if (uncached.length > 0) {
-    stats.apiCalls++
-    freshResults = await gateway.analyze(uncached, config.sensitivity, {
-      mode: config.analysisMode,
-      customRules: config.customRules,
-    })
-    await cache.set(freshResults)
+  // Push cache hits immediately
+  if (cached.size > 0 && tabId != null) {
+    pushToTab(tabId, [...cached.values()])
   }
 
-  // Merge all results
-  const llmResults: AnalysisResult[] = passedNotes.map(n => {
-    const hit = cached.get(n.noteId)
-    if (hit) return hit
-    return freshResults.find(r => r.noteId === n.noteId) ?? {
-      noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: '分析失败',
+  // ── Layer 3: LLM analysis with streaming ──
+  if (uncached.length > 0) {
+    stats.apiCalls++
+
+    // Streaming callback: push each result to tab as it arrives
+    const onPartialResult = tabId != null ? (result: AnalysisResult) => {
+      cache.setOne(result)
+      if (result.isLowQuality) stats.marked++
+      pushToTab(tabId, [result])
+    } : undefined
+
+    const allResults = await gateway.analyze(
+      uncached, config.sensitivity,
+      { mode: config.analysisMode, customRules: config.customRules },
+      onPartialResult
+    )
+
+    // For non-streaming path or any results not yet pushed
+    if (!onPartialResult) {
+      await cache.set(allResults)
+      stats.marked += allResults.filter(r => r.isLowQuality).length
+      if (tabId != null) pushToTab(tabId, allResults)
     }
-  })
-
-  stats.marked += llmResults.filter(r => r.isLowQuality).length
-
-  return [...keywordHits, ...llmResults]
+  }
 }
 
 chrome.runtime.onInstalled.addListener((details) => {

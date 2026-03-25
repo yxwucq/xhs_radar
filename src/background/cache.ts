@@ -22,6 +22,7 @@ type CacheStore = Record<string, CacheEntry>
 export class AnalysisCache {
   private store: CacheStore = {}
   private loaded = false
+  private persistTimer: ReturnType<typeof setTimeout> | null = null
 
   /** Load cache from storage. Call once on startup. */
   async load(): Promise<void> {
@@ -76,6 +77,19 @@ export class AnalysisCache {
 
     this.evictIfNeeded()
     await this.persist()
+  }
+
+  /** Store a single result with debounced persist (for streaming). */
+  setOne(result: AnalysisResult): void {
+    const now = Date.now()
+    this.store[result.noteId] = { result, createdAt: now, lastAccess: now }
+    this.evictIfNeeded()
+    if (!this.persistTimer) {
+      this.persistTimer = setTimeout(() => {
+        this.persistTimer = null
+        this.persist()
+      }, 500)
+    }
   }
 
   /** Clear all cached entries. */
