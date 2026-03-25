@@ -49,8 +49,20 @@ export interface UserConfig {
   model: string
   sensitivity: number
   enabledTags: LowQualityTag[]
-  /** Keywords for keyword mode (matched against note titles) */
-  keywordList: string[]
+  /** Per-category keyword rules for pre-filter. User-customizable. */
+  keywordRules: Record<LowQualityTag, string[]>
+  /** User-created custom filter rules */
+  customRules: CustomRule[]
+}
+
+export interface CustomRule {
+  id: string
+  name: string
+  /** LLM instruction — tells the model what to filter (e.g. "过滤推销加密货币的内容") */
+  description: string
+  /** Keywords for instant pre-filter (optional, complements LLM) */
+  keywords: string[]
+  enabled: boolean
 }
 
 /** Runtime stats stored in chrome.storage.session */

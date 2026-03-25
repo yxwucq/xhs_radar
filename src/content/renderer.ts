@@ -5,13 +5,14 @@ const OVERLAY_ATTR = 'data-xhs-radar-overlay'
 const BLUR_TARGET_ATTR = 'data-xhs-radar-blur-target'
 const STATUS_ATTR = 'data-xhs-radar-status'
 
-export type CardStatus = 'pending' | 'pass' | 'fail'
+export type CardStatus = 'pending' | 'pass' | 'fail' | 'error'
 
 /**
- * Show a small debug status indicator on a card.
+ * Show a small status indicator on a card.
  * - pending: pulsing yellow dot (processing)
  * - pass: green checkmark (normal quality)
  * - fail: red cross (low quality)
+ * - error: orange warning (API failed, not analyzed)
  */
 export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: string): void {
   let indicator = card.querySelector(`[${STATUS_ATTR}]`) as HTMLElement | null
@@ -19,8 +20,6 @@ export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: st
     indicator = document.createElement('div')
     indicator.setAttribute(STATUS_ATTR, 'true')
     indicator.className = 'xhs-radar-status'
-    // Don't touch card's position — XHS may use absolute positioning for waterfall layout.
-    // If card has no positioning context, the indicator still renders inside the card's box.
     card.appendChild(indicator)
   }
 
@@ -31,6 +30,7 @@ export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: st
     pending: '',
     pass: '\u2713',
     fail: '\u2717',
+    error: '!',
   }
   indicator.textContent = symbols[status]
 }

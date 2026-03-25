@@ -1,15 +1,25 @@
 import type { NoteInput } from './messaging'
+import type { CustomRule } from './types'
 
 /**
  * Shared system prompt — used by both detailed and lite modes.
- * Defines what "low quality" means and the sensitivity threshold.
+ * Includes built-in categories + user's custom rule descriptions.
  */
-export function buildSystemPrompt(sensitivity: number): string {
+export function buildSystemPrompt(sensitivity: number, customRules: CustomRule[] = []): string {
   const threshold = sensitivity <= 30 ? '非常明显' : sensitivity <= 70 ? '较为明显' : '轻微疑似'
 
-  return `判断小红书笔记标题是否低质。仅根据标题判断，正常知识分享/生活记录/经验讨论不算低质。
-低质类型：clickbait(标题党) anxiety(焦虑诱导) misinformation(虚假信息) hidden_ad(软广) emotional_manipulation(情绪操控)
-判定标准：${threshold}的低质特征即判LOW。`
+  let prompt = `判断小红书笔记标题是否低质。仅根据标题判断，正常知识分享/生活记录/经验讨论不算低质。
+低质类型：clickbait(标题党) anxiety(焦虑诱导) misinformation(虚假信息) hidden_ad(软广) emotional_manipulation(情绪操控)`
+
+  // Append enabled custom rules with descriptions
+  const activeCustom = customRules.filter(r => r.enabled && r.description.trim())
+  if (activeCustom.length > 0) {
+    const customLines = activeCustom.map(r => `${r.name}: ${r.description}`).join('\n')
+    prompt += `\n用户自定义过滤规则（同样判LOW）：\n${customLines}`
+  }
+
+  prompt += `\n判定标准：${threshold}的低质特征即判LOW。`
+  return prompt
 }
 
 /**

@@ -1,6 +1,14 @@
 import type { AnalysisResult, LowQualityTag } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 
+import type { CustomRule } from '@/shared/types'
+
+/** Options passed to LLM analysis */
+export interface AnalyzeOptions {
+  mode?: 'detailed' | 'lite'
+  customRules?: CustomRule[]
+}
+
 /** Interface all LLM providers must implement */
 export interface LLMProvider {
   /** Analyze a batch of notes and return quality assessments */
@@ -8,7 +16,7 @@ export interface LLMProvider {
     notes: NoteInput[],
     sensitivity: number,
     signal?: AbortSignal,
-    mode?: 'detailed' | 'lite'
+    options?: AnalyzeOptions
   ): Promise<AnalysisResult[]>
 }
 

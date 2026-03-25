@@ -2,7 +2,7 @@ import type { AnalysisResult } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 import { DEFAULT_API_URLS } from '@/shared/constants'
 import { buildSystemPrompt, buildBatchPrompt, buildLiteBatchPrompt } from '@/shared/prompt'
-import type { LLMProvider } from './base'
+import type { LLMProvider, AnalyzeOptions } from './base'
 import { parseLineResponse } from './base'
 
 export class OpenAIProvider implements LLMProvider {
@@ -20,8 +20,9 @@ export class OpenAIProvider implements LLMProvider {
     notes: NoteInput[],
     sensitivity: number,
     signal?: AbortSignal,
-    mode: 'detailed' | 'lite' = 'detailed'
+    options: AnalyzeOptions = {}
   ): Promise<AnalysisResult[]> {
+    const { mode = 'detailed', customRules = [] } = options
     const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
 
     const response = await fetch(this.baseUrl, {
@@ -33,7 +34,7 @@ export class OpenAIProvider implements LLMProvider {
       body: JSON.stringify({
         model: this.model,
         messages: [
-          { role: 'system', content: buildSystemPrompt(sensitivity) },
+          { role: 'system', content: buildSystemPrompt(sensitivity, customRules) },
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.1,
@@ -46,7 +47,11 @@ export class OpenAIProvider implements LLMProvider {
       throw new Error(`OpenAI API error ${response.status}: ${body.slice(0, 200)}`)
     }
 
-    const data = await response.json()
+    const text = await response.text()
+    let data: any
+    try { data = JSON.parse(text) } catch {
+      throw new Error(`OpenAI returned non-JSON: ${text.slice(0, 100)}`)
+    }
     const content: string = data.choices?.[0]?.message?.content ?? ''
 
     if (!content) {

@@ -85,7 +85,13 @@ function handleResults(results: AnalysisResult[]): void {
 
     resultMap.set(result.noteId, result)
 
-    if (result.isLowQuality) {
+    // Detect fallback results (API failed — reason contains "失败" or "超时" or "无效")
+    const isFallback = !result.isLowQuality && result.reason &&
+      /失败|超时|无效|未设置|跳过/.test(result.reason)
+
+    if (isFallback) {
+      setCardStatus(card, 'error', result.reason)
+    } else if (result.isLowQuality) {
       console.log(LOG_PREFIX, '⚠ LOW QUALITY', {
         noteId: result.noteId,
         score: result.score,
@@ -105,15 +111,24 @@ const queue = new AnalysisQueue()
 
 function handleNewNotes(notes: NoteData[]): void {
   if (!enabled || dead) return
+  const uncached: NoteData[] = []
   for (const note of notes) {
-    // Enrich with desc from feed API interceptor
+    cardMap.set(note.noteId, note.element)
+    // Already analyzed — apply cached result immediately, skip queue
+    const cached = resultMap.get(note.noteId)
+    if (cached) {
+      applyMark(note.element, cached)
+      const isFallback = !cached.isLowQuality && cached.reason && /失败|超时|无效|未设置|跳过/.test(cached.reason)
+      setCardStatus(note.element, isFallback ? 'error' : cached.isLowQuality ? 'fail' : 'pass')
+      continue
+    }
     if (!note.content && descCache.has(note.noteId)) {
       note.content = descCache.get(note.noteId)!
     }
-    cardMap.set(note.noteId, note.element)
     setCardStatus(note.element, 'pending', note.title)
+    uncached.push(note)
   }
-  queue.enqueue(notes)
+  if (uncached.length > 0) queue.enqueue(uncached)
 }
 
 // ── Listen for messages from popup & background ────────────────

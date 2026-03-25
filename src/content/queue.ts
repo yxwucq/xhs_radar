@@ -2,7 +2,7 @@ import type { NoteData } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 
 const LOG_PREFIX = '[XHS Radar Queue]'
-const BATCH_SIZE = 10
+const BATCH_SIZE = 20
 const FLUSH_DELAY_MS = 500
 
 /**

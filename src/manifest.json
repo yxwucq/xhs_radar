@@ -13,7 +13,8 @@
     "activeTab"
   ],
   "host_permissions": [
-    "*://www.xiaohongshu.com/*"
+    "*://www.xiaohongshu.com/*",
+    "*://*/*"
   ],
   "background": {
     "service_worker": "src/background/index.ts",

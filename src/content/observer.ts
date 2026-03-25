@@ -32,7 +32,7 @@ export class FeedObserver {
   start(): void {
     this.intersectionObserver = new IntersectionObserver(
       (entries) => this.handleIntersection(entries),
-      { rootMargin: '800px' } // trigger ~2-3 cards before visible
+      { rootMargin: '4000px' } // trigger ~3-4 pages ahead
     )
     this.tryConnect(0)
 

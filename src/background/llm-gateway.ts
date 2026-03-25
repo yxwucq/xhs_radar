@@ -1,11 +1,11 @@
 import type { AnalysisResult, UserConfig } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
-import type { LLMProvider } from './providers/base'
+import type { LLMProvider, AnalyzeOptions } from './providers/base'
 import { OpenAIProvider } from './providers/openai'
 import { AnthropicProvider } from './providers/anthropic'
 
 const LOG_PREFIX = '[XHS Radar Gateway]'
-const MAX_CONCURRENT = 5
+const MAX_CONCURRENT = 2
 const TIMEOUT_MS = 15_000
 const MAX_RETRIES = 2
 
@@ -49,7 +49,7 @@ export class LLMGateway {
   private queue: Array<{
     notes: NoteInput[]
     sensitivity: number
-    mode: 'detailed' | 'lite'
+    options: AnalyzeOptions
     resolve: (results: AnalysisResult[]) => void
     reject: (error: Error) => void
   }> = []
@@ -83,13 +83,13 @@ export class LLMGateway {
     console.log(LOG_PREFIX, `Provider updated: ${config.llmProvider} / ${config.model}`)
   }
 
-  analyze(notes: NoteInput[], sensitivity: number, mode: 'detailed' | 'lite' = 'detailed'): Promise<AnalysisResult[]> {
+  analyze(notes: NoteInput[], sensitivity: number, options: AnalyzeOptions = {}): Promise<AnalysisResult[]> {
     if (!this.provider) {
       return Promise.reject(new Error('LLM provider not configured. Set your API key in settings.'))
     }
 
     return new Promise((resolve, reject) => {
-      this.queue.push({ notes, sensitivity, mode, resolve, reject })
+      this.queue.push({ notes, sensitivity, options, resolve, reject })
       this.processQueue()
     })
   }
@@ -98,7 +98,7 @@ export class LLMGateway {
     while (this.activeRequests < MAX_CONCURRENT && this.queue.length > 0) {
       const item = this.queue.shift()!
       this.activeRequests++
-      this.executeWithRetry(item.notes, item.sensitivity, item.mode, 0)
+      this.executeWithRetry(item.notes, item.sensitivity, item.options, 0)
         .then(item.resolve)
         .catch(item.reject)
         .finally(() => {
@@ -111,7 +111,7 @@ export class LLMGateway {
   private async executeWithRetry(
     notes: NoteInput[],
     sensitivity: number,
-    mode: 'detailed' | 'lite',
+    options: AnalyzeOptions,
     attempt: number
   ): Promise<AnalysisResult[]> {
     const controller = new AbortController()
@@ -119,7 +119,7 @@ export class LLMGateway {
 
     try {
       console.log(LOG_PREFIX, `Analyzing ${notes.length} note(s)${attempt > 0 ? ` (retry ${attempt})` : ''}...`)
-      const results = await this.provider!.analyze(notes, sensitivity, controller.signal, mode)
+      const results = await this.provider!.analyze(notes, sensitivity, controller.signal, options)
       console.log(LOG_PREFIX, `Analysis complete for ${notes.length} note(s)`)
       return results
     } catch (error) {
@@ -131,7 +131,7 @@ export class LLMGateway {
 
       // Auth error — don't retry, it won't help
       if (isAuthError(error)) {
-        console.error(LOG_PREFIX, 'API key invalid or unauthorized:', (error as Error).message)
+        console.log(LOG_PREFIX, 'API key invalid or unauthorized:', (error as Error).message)
         return fallbackResults(notes, 'API Key 无效')
       }
 
@@ -140,11 +140,11 @@ export class LLMGateway {
         const delay = 1000 * 2 ** attempt // 1s, 2s
         console.warn(LOG_PREFIX, `Retryable error, waiting ${delay}ms:`, (error as Error).message)
         await new Promise(r => setTimeout(r, delay))
-        return this.executeWithRetry(notes, sensitivity, mode, attempt + 1)
+        return this.executeWithRetry(notes, sensitivity, options, attempt + 1)
       }
 
       // Unknown error — return fallback, don't crash
-      console.error(LOG_PREFIX, 'Analysis failed:', error)
+      console.log(LOG_PREFIX, 'Analysis failed:', error)
       return fallbackResults(notes, '分析失败，默认放行')
     } finally {
       clearTimeout(timeout)

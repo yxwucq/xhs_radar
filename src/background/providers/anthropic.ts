@@ -2,7 +2,7 @@ import type { AnalysisResult } from '@/shared/types'
 import type { NoteInput } from '@/shared/messaging'
 import { DEFAULT_API_URLS } from '@/shared/constants'
 import { buildSystemPrompt, buildBatchPrompt, buildLiteBatchPrompt } from '@/shared/prompt'
-import type { LLMProvider } from './base'
+import type { LLMProvider, AnalyzeOptions } from './base'
 import { parseLineResponse } from './base'
 
 export class AnthropicProvider implements LLMProvider {
@@ -20,8 +20,9 @@ export class AnthropicProvider implements LLMProvider {
     notes: NoteInput[],
     sensitivity: number,
     signal?: AbortSignal,
-    mode: 'detailed' | 'lite' = 'detailed'
+    options: AnalyzeOptions = {}
   ): Promise<AnalysisResult[]> {
+    const { mode = 'detailed', customRules = [] } = options
     const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
 
     const response = await fetch(this.baseUrl, {
@@ -35,7 +36,7 @@ export class AnthropicProvider implements LLMProvider {
       body: JSON.stringify({
         model: this.model,
         max_tokens: 1024,
-        system: buildSystemPrompt(sensitivity),
+        system: buildSystemPrompt(sensitivity, customRules),
         messages: [
           { role: 'user', content: userPrompt },
         ],
@@ -48,7 +49,11 @@ export class AnthropicProvider implements LLMProvider {
       throw new Error(`Anthropic API error ${response.status}: ${body.slice(0, 200)}`)
     }
 
-    const data = await response.json()
+    const text = await response.text()
+    let data: any
+    try { data = JSON.parse(text) } catch {
+      throw new Error(`Anthropic returned non-JSON: ${text.slice(0, 100)}`)
+    }
     const content: string = data.content?.[0]?.text ?? ''
 
     if (!content) {

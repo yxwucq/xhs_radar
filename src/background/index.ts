@@ -30,7 +30,7 @@ async function init(): Promise<void> {
     await cache.load()
     console.log(LOG_PREFIX, 'Initialized:', config.llmProvider, config.model, `cache=${cache.size}`)
   } catch (e) {
-    console.error(LOG_PREFIX, 'Init failed:', e)
+    console.log(LOG_PREFIX, 'Init failed:', e)
   }
 }
 
@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
           }
         })
         .catch(err => {
-          console.error(LOG_PREFIX, 'Analysis failed:', err)
+          console.log(LOG_PREFIX, 'Analysis failed:', err)
           stats.errors++
         })
       return false
@@ -109,7 +109,7 @@ async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
   stats.scanned += notes.length
 
   // ── Layer 1: Keyword pre-filter (instant, always active) ──
-  const keywordResults = analyzeByKeywords(notes, config.keywordList)
+  const keywordResults = analyzeByKeywords(notes, config.keywordRules, config.enabledTags, config.customRules)
   const keywordHits: AnalysisResult[] = []
   const passedNotes: NoteInput[] = []
 
@@ -132,8 +132,9 @@ async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
     if (passedNotes.length > 0 && !config.apiKey) {
       console.log(LOG_PREFIX, 'No API key set, skipping LLM analysis')
     }
+    const noKeyReason = !config.apiKey ? 'API Key 未设置，跳过分析' : ''
     return [...keywordHits, ...passedNotes.map(n => ({
-      noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: '',
+      noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: noKeyReason,
     }))]
   }
 
@@ -146,7 +147,10 @@ async function handleAnalyze(notes: NoteInput[]): Promise<AnalysisResult[]> {
   let freshResults: AnalysisResult[] = []
   if (uncached.length > 0) {
     stats.apiCalls++
-    freshResults = await gateway.analyze(uncached, config.sensitivity, config.analysisMode)
+    freshResults = await gateway.analyze(uncached, config.sensitivity, {
+      mode: config.analysisMode,
+      customRules: config.customRules,
+    })
     await cache.set(freshResults)
   }
 

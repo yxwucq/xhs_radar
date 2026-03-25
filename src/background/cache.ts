@@ -32,7 +32,7 @@ export class AnalysisCache {
       this.loaded = true
       console.log(LOG_PREFIX, `Loaded ${Object.keys(this.store).length} entries`)
     } catch (e) {
-      console.error(LOG_PREFIX, 'Failed to load cache:', e)
+      console.log(LOG_PREFIX, 'Failed to load cache:', e)
       this.store = {}
       this.loaded = true
     }
@@ -123,7 +123,7 @@ export class AnalysisCache {
     try {
       await chrome.storage.local.set({ [STORAGE_KEY]: this.store })
     } catch (e) {
-      console.error(LOG_PREFIX, 'Failed to persist cache:', e)
+      console.log(LOG_PREFIX, 'Failed to persist cache:', e)
     }
   }
 }
