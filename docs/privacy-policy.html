@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XHS Content Radar - Privacy Policy</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 20px; color: #333; line-height: 1.8; }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  h2 { font-size: 18px; margin-top: 32px; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 40px; }
+  ul { padding-left: 20px; }
+  .lang-switch { text-align: right; margin-bottom: 20px; }
+  .lang-switch a { color: #D4845A; text-decoration: none; font-size: 14px; }
+  section { margin-bottom: 24px; }
+  hr { border: none; border-top: 1px solid #eee; margin: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="lang-switch"><a href="#english">English Version</a></div>
+
+<h1>XHS Content Radar 隐私政策</h1>
+<p class="subtitle">最后更新：2026 年 3 月 26 日</p>
+
+<section>
+<h2>概述</h2>
+<p>XHS Content Radar（以下简称"本扩展"）是一款浏览器扩展，用于在小红书网页端识别并过滤低质量内容。我们重视用户隐私，本政策说明本扩展如何处理数据。</p>
+</section>
+
+<section>
+<h2>数据收集与使用</h2>
+<p>本扩展<strong>不收集、不存储、不传输任何用户个人信息</strong>。</p>
+<p>本扩展在运行过程中会处理以下数据：</p>
+<ul>
+  <li><strong>笔记标题、作者名、点赞数</strong> — 从小红书页面 DOM 中读取，用于内容质量分析。这些数据仅在本地处理或发送至用户自行配置的 AI API 端点。</li>
+  <li><strong>API 配置信息</strong>（API Key、API 地址、模型名称）— 由用户手动输入，存储在浏览器本地 <code>chrome.storage.local</code> 中，不会上传至任何第三方服务器。</li>
+  <li><strong>分析结果缓存</strong> — 存储在浏览器本地，用于避免重复分析。</li>
+</ul>
+</section>
+
+<section>
+<h2>第三方服务</h2>
+<p>本扩展会将笔记标题等公开信息发送至<strong>用户自行配置的 AI API 端点</strong>（如 OpenAI、Anthropic 或其他兼容服务）进行内容分析。本扩展不控制这些第三方服务的数据处理方式，请参阅相应服务的隐私政策。</p>
+<p>如果用户未配置 API Key，本扩展不会向任何外部服务发送数据。</p>
+</section>
+
+<section>
+<h2>数据存储</h2>
+<p>所有数据均存储在用户浏览器本地（<code>chrome.storage.local</code>），包括：</p>
+<ul>
+  <li>用户配置（API 设置、过滤规则、灵敏度等）</li>
+  <li>分析结果缓存</li>
+</ul>
+<p>用户可随时通过扩展设置页面清除缓存，或卸载扩展以删除所有本地数据。</p>
+</section>
+
+<section>
+<h2>权限说明</h2>
+<ul>
+  <li><strong>storage</strong> — 用于在浏览器本地保存配置和缓存</li>
+  <li><strong>activeTab</strong> — 用于读取当前小红书页面内容</li>
+  <li><strong>xiaohongshu.com</strong> — 用于在小红书页面注入内容分析脚本</li>
+  <li><strong>可选的主机权限</strong> — 用于访问用户配置的 API 端点，仅在用户明确授权后生效</li>
+</ul>
+</section>
+
+<section>
+<h2>变更通知</h2>
+<p>如本隐私政策发生变更，我们将在此页面更新内容并修改"最后更新"日期。</p>
+</section>
+
+<section>
+<h2>联系方式</h2>
+<p>如有隐私相关问题，请通过 GitHub 仓库提交 Issue。</p>
+</section>
+
+<hr id="english">
+
+<h1>XHS Content Radar Privacy Policy</h1>
+<p class="subtitle">Last updated: March 26, 2026</p>
+
+<section>
+<h2>Overview</h2>
+<p>XHS Content Radar ("the Extension") is a browser extension that identifies and filters low-quality content on the Xiaohongshu (Little Red Book) website. We value user privacy, and this policy explains how the Extension handles data.</p>
+</section>
+
+<section>
+<h2>Data Collection and Use</h2>
+<p>The Extension <strong>does not collect, store, or transmit any personal user information</strong>.</p>
+<p>The Extension processes the following data during operation:</p>
+<ul>
+  <li><strong>Note titles, author names, and like counts</strong> — Read from the Xiaohongshu page DOM for content quality analysis. This data is processed locally or sent to an AI API endpoint configured by the user.</li>
+  <li><strong>API configuration</strong> (API Key, base URL, model name) — Manually entered by the user and stored in the browser's local <code>chrome.storage.local</code>. This data is never uploaded to any third-party server.</li>
+  <li><strong>Analysis result cache</strong> — Stored locally in the browser to avoid redundant analysis.</li>
+</ul>
+</section>
+
+<section>
+<h2>Third-Party Services</h2>
+<p>The Extension sends publicly visible note titles to an <strong>AI API endpoint configured by the user</strong> (such as OpenAI, Anthropic, or other compatible services) for content analysis. The Extension does not control how these third-party services handle data; please refer to their respective privacy policies.</p>
+<p>If no API Key is configured, the Extension does not send data to any external service.</p>
+</section>
+
+<section>
+<h2>Data Storage</h2>
+<p>All data is stored locally in the user's browser (<code>chrome.storage.local</code>), including:</p>
+<ul>
+  <li>User configuration (API settings, filter rules, sensitivity, etc.)</li>
+  <li>Analysis result cache</li>
+</ul>
+<p>Users can clear the cache at any time via the Extension's settings page, or uninstall the Extension to remove all local data.</p>
+</section>
+
+<section>
+<h2>Permissions</h2>
+<ul>
+  <li><strong>storage</strong> — Save configuration and cache locally in the browser</li>
+  <li><strong>activeTab</strong> — Read the current Xiaohongshu page content</li>
+  <li><strong>xiaohongshu.com</strong> — Inject content analysis scripts on Xiaohongshu pages</li>
+  <li><strong>Optional host permissions</strong> — Access user-configured API endpoints, only active after explicit user authorization</li>
+</ul>
+</section>
+
+<section>
+<h2>Changes</h2>
+<p>If this privacy policy is updated, we will revise the content on this page and update the "Last updated" date.</p>
+</section>
+
+<section>
+<h2>Contact</h2>
+<p>For privacy-related questions, please submit an Issue on the GitHub repository.</p>
+</section>
+
+</body>
+</html>

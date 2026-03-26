@@ -13,7 +13,9 @@
     "activeTab"
   ],
   "host_permissions": [
-    "*://www.xiaohongshu.com/*",
+    "*://www.xiaohongshu.com/*"
+  ],
+  "optional_host_permissions": [
     "*://*/*"
   ],
   "background": {

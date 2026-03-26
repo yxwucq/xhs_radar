@@ -94,6 +94,15 @@ export default function App() {
     }))
   }
 
+  async function requestApiPermission(url: string): Promise<boolean> {
+    try {
+      const origin = new URL(url).origin
+      return await chrome.permissions.request({ origins: [origin + '/*'] })
+    } catch {
+      return false
+    }
+  }
+
   async function handleTestApi() {
     if (!config.apiKey) {
       setApiTest('fail')
@@ -105,6 +114,14 @@ export default function App() {
     try {
       const baseUrl = config.apiBaseUrl || DEFAULT_API_URLS[config.llmProvider]
       const isAnthropic = config.llmProvider === 'anthropic'
+
+      // Request host permission for the API endpoint
+      const granted = await requestApiPermission(baseUrl)
+      if (!granted) {
+        setApiTest('fail')
+        setApiTestMsg('需要授权访问该 API 地址')
+        return
+      }
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (isAnthropic) {
