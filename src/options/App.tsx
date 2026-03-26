@@ -16,8 +16,8 @@ const TAG_ICONS: Record<LowQualityTag, string> = {
 
 export default function App() {
   const [config, setConfig] = useState<UserConfig>(DEFAULT_CONFIG)
-  const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const [cacheCleared, setCacheCleared] = useState(false)
   const [expandedTag, setExpandedTag] = useState<LowQualityTag | null>(null)
   const [apiTest, setApiTest] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
@@ -29,8 +29,17 @@ export default function App() {
         setConfig({ ...DEFAULT_CONFIG, ...stored.config })
       }
       setLoading(false)
+      // Delay to avoid auto-save on initial load
+      setTimeout(() => setInitialized(true), 100)
     })
   }, [])
+
+  // Auto-save on any config change
+  useEffect(() => {
+    if (!initialized) return
+    chrome.storage.local.set({ config })
+    chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: config }).catch(() => {})
+  }, [config, initialized])
 
   function updateField<K extends keyof UserConfig>(key: K, value: UserConfig[K]) {
     setConfig(prev => {
@@ -42,7 +51,6 @@ export default function App() {
       }
       return next
     })
-    setSaved(false)
   }
 
   function toggleTag(tag: LowQualityTag) {
@@ -52,7 +60,6 @@ export default function App() {
         : [...prev.enabledTags, tag]
       return { ...prev, enabledTags: tags }
     })
-    setSaved(false)
   }
 
   function addCustomRule() {
@@ -64,7 +71,6 @@ export default function App() {
       enabled: true,
     }
     setConfig(prev => ({ ...prev, customRules: [...(prev.customRules ?? []), rule] }))
-    setSaved(false)
   }
 
   function updateCustomRule(id: string, patch: Partial<CustomRule>) {
@@ -72,7 +78,6 @@ export default function App() {
       ...prev,
       customRules: (prev.customRules ?? []).map(r => r.id === id ? { ...r, ...patch } : r),
     }))
-    setSaved(false)
   }
 
   function removeCustomRule(id: string) {
@@ -80,7 +85,6 @@ export default function App() {
       ...prev,
       customRules: (prev.customRules ?? []).filter(r => r.id !== id),
     }))
-    setSaved(false)
   }
 
   function updateKeywordsForTag(tag: LowQualityTag, keywords: string[]) {
@@ -88,14 +92,6 @@ export default function App() {
       ...prev,
       keywordRules: { ...prev.keywordRules, [tag]: keywords },
     }))
-    setSaved(false)
-  }
-
-  async function handleSave() {
-    await chrome.storage.local.set({ config })
-    chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: config })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
   }
 
   async function handleTestApi() {
@@ -473,15 +469,10 @@ export default function App() {
 
         {/* ── Actions ── */}
         <div className="flex items-center gap-3 pt-2">
-          <button onClick={handleSave} className="btn-primary">
-            {saved ? '已保存 ✓' : '保存设置'}
-          </button>
           <button onClick={handleClearCache} className="btn-secondary">
             {cacheCleared ? '已清除 ✓' : '清除缓存'}
           </button>
-          {saved && (
-            <span className="toast text-xs text-sage font-medium">设置已生效</span>
-          )}
+          <span className="text-[11px] text-muted">设置修改后自动保存</span>
         </div>
       </div>
     </div>

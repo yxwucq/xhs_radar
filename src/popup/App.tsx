@@ -10,6 +10,7 @@ export default function App() {
   const [filterMode, setFilterMode] = useState<FilterMode>('blur')
   const [stats, setStats] = useState<ExtendedStats | null>(null)
   const [hasApiKey, setHasApiKey] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
 
   const loadState = useCallback(() => {
     chrome.storage.local.get('config').then((stored) => {
@@ -116,14 +117,37 @@ export default function App() {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats Summary — click to expand */}
       {enabled && stats && (
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <StatCard label="已扫描" value={stats.scanned} />
-          <StatCard label="已标记" value={stats.marked} accent />
-          <StatCard label="缓存命中" value={stats.cacheHits} />
-          <StatCard label="API 调用" value={stats.apiCalls} />
-        </div>
+        <button
+          onClick={() => setShowDetail(!showDetail)}
+          className="w-full mb-4 bg-white rounded-2xl p-3 shadow-card text-left transition-all duration-200 hover:shadow-soft"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-muted">已扫描</span>
+              <span className="text-sm font-serif font-semibold text-bark">{stats.scanned}</span>
+              <span className="text-xs text-muted">已过滤</span>
+              <span className="text-sm font-serif font-semibold text-coral">{stats.marked}</span>
+            </div>
+            <svg
+              className={`w-3.5 h-3.5 text-muted transition-transform duration-200 ${showDetail ? 'rotate-180' : ''}`}
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+
+          {/* Expanded detail */}
+          {showDetail && (
+            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-sand/60">
+              <DetailRow label="缓存命中" value={stats.cacheHits} />
+              <DetailRow label="API 调用" value={stats.apiCalls} />
+              {stats.errors > 0 && <DetailRow label="错误" value={stats.errors} accent />}
+              {stats.cacheSize != null && <DetailRow label="缓存条数" value={stats.cacheSize} />}
+            </div>
+          )}
+        </button>
       )}
 
       {/* Settings Link */}
@@ -141,7 +165,7 @@ export default function App() {
   )
 }
 
-function StatCard({
+function DetailRow({
   label,
   value,
   accent = false,
@@ -151,13 +175,9 @@ function StatCard({
   accent?: boolean
 }) {
   return (
-    <div className="stat-card bg-white rounded-2xl p-3 shadow-card">
-      <div className={`text-xl font-serif font-semibold leading-tight ${
-        accent ? 'text-coral' : 'text-bark'
-      }`}>
-        {value}
-      </div>
-      <div className="text-[10px] text-muted mt-1 tracking-wide uppercase">{label}</div>
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] text-muted">{label}</span>
+      <span className={`text-xs font-medium ${accent ? 'text-coral' : 'text-bark'}`}>{value}</span>
     </div>
   )
 }
