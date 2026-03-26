@@ -180,6 +180,32 @@ try {
   })
 } catch { die() }
 
+// ── Feed API Interceptor (external script, safe from CSP) ──────
+
+/** Listen for desc data posted from the injected page script */
+window.addEventListener('message', (e) => {
+  if (e.source !== window || e.data?.type !== 'XHS_RADAR_FEED_DATA') return
+  const items = e.data.items as Array<{ noteId: string; desc: string }>
+  if (!items?.length) return
+  for (const item of items) {
+    if (item.desc) descCache.set(item.noteId, item.desc)
+  }
+  console.log(LOG_PREFIX, `Feed API intercepted: ${items.filter(i => i.desc).length}/${items.length} with desc`)
+})
+
+/** Inject feed-hook.js into page's main world via <script src> */
+function injectFeedHook(): void {
+  try {
+    const url = chrome.runtime.getURL('feed-hook.js')
+    const script = document.createElement('script')
+    script.src = url
+    script.onload = () => script.remove()
+    ;(document.head || document.documentElement).appendChild(script)
+  } catch {
+    // Extension context may be invalidated — ignore silently
+  }
+}
+
 // ── Init ──────────────────────────────────────────
 
 function init(): void {
@@ -188,6 +214,9 @@ function init(): void {
   // Clean up zombie marks from previous content script instances (extension reload)
   clearAllMarks()
   document.querySelectorAll('[data-xhs-radar-status]').forEach(el => el.remove())
+
+  // Inject feed API interceptor (must be before observer to catch initial feed load)
+  injectFeedHook()
 
   const observer = new FeedObserver(handleNewNotes)
   observer.start()
