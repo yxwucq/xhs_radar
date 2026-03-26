@@ -45,6 +45,10 @@ export interface SetFilterModeMessage {
   payload: { mode: FilterMode }
 }
 
+export interface GetDailyStatsMessage {
+  type: 'GET_DAILY_STATS'
+}
+
 /** Union of all messages that can be sent */
 export type Message =
   | AnalyzeNotesMessage
@@ -54,6 +58,7 @@ export type Message =
   | ConfigChangedMessage
   | ToggleEnabledMessage
   | SetFilterModeMessage
+  | GetDailyStatsMessage
 
 // ── Response types ─────────────────────────────────────────
 

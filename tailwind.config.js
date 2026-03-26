@@ -3,6 +3,7 @@ export default {
   content: [
     'src/popup/**/*.{html,tsx}',
     'src/options/**/*.{html,tsx}',
+    'src/stats/**/*.{html,tsx}',
   ],
   theme: {
     extend: {

@@ -9,6 +9,13 @@ export default defineConfig({
     react(),
     crx({ manifest }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        stats: resolve(__dirname, 'src/stats/index.html'),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

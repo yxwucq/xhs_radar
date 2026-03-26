@@ -73,3 +73,11 @@ export interface SessionStats {
   apiCalls: number
   errors: number
 }
+
+/** Per-day stats for history tracking */
+export interface DailyStats {
+  date: string // YYYY-MM-DD
+  scanned: number
+  marked: number
+  apiCalls: number
+}

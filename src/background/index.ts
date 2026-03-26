@@ -4,11 +4,13 @@ import { DEFAULT_CONFIG } from '@/shared/constants'
 import { LLMGateway } from './llm-gateway'
 import { AnalysisCache } from './cache'
 import { analyzeByKeywords } from './keyword-analyzer'
+import { DailyStatsTracker } from './daily-stats'
 
 const LOG_PREFIX = '[XHS Radar BG]'
 
 const gateway = new LLMGateway()
 const cache = new AnalysisCache()
+const dailyStats = new DailyStatsTracker()
 
 let config: UserConfig = { ...DEFAULT_CONFIG }
 let stats: SessionStats = {
@@ -28,6 +30,7 @@ async function init(): Promise<void> {
     }
     gateway.updateConfig(config)
     await cache.load()
+    await dailyStats.load()
     console.log(LOG_PREFIX, 'Initialized:', config.llmProvider, config.model, `cache=${cache.size}`)
   } catch (e) {
     console.log(LOG_PREFIX, 'Init failed:', e)
@@ -62,6 +65,10 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
 
     case 'GET_STATUS':
       sendResponse({ ...stats, cacheSize: cache.size })
+      return false
+
+    case 'GET_DAILY_STATS':
+      sendResponse({ days: dailyStats.getAll() })
       return false
 
     case 'TOGGLE_ENABLED':
@@ -135,6 +142,7 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
       noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: noKeyReason,
     }))
     if (tabId != null) pushToTab(tabId, skipped)
+    dailyStats.record(notes.length, keywordHits.length, 0)
     return
   }
 
@@ -171,6 +179,9 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
       if (tabId != null) pushToTab(tabId, allResults)
     }
   }
+
+  // Record daily stats (keyword hits already counted; LLM marked counted via streaming)
+  dailyStats.record(notes.length, keywordHits.length, uncached.length > 0 ? 1 : 0)
 }
 
 chrome.runtime.onInstalled.addListener((details) => {

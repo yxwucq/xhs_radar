@@ -49,12 +49,12 @@ export default function App() {
   }
 
   return (
-    <div className="p-5 font-body">
+    <div className="px-5 pt-5 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl bg-amber-light flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4845A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-light flex items-center justify-center shadow-card">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4845A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <circle cx="12" cy="12" r="3"/>
               <line x1="12" y1="2" x2="12" y2="5"/>
@@ -64,11 +64,11 @@ export default function App() {
             </svg>
           </div>
           <div>
-            <h1 className="font-serif text-base font-semibold text-bark leading-tight tracking-tight">
+            <h1 className="text-[15px] font-bold text-bark leading-tight tracking-tight">
               Content Radar
             </h1>
-            <p className="text-[10px] text-muted leading-tight mt-0.5">
-              {enabled ? '守护中' : '已暂停'}
+            <p className="text-[10px] text-muted leading-tight mt-0.5" style={{ fontFamily: 'system-ui' }}>
+              {enabled ? '正在守护你的信息流' : '守护已暂停'}
             </p>
           </div>
         </div>
@@ -90,11 +90,11 @@ export default function App() {
       {/* API Key Warning */}
       {!hasApiKey && (
         <div className="mb-4 p-3 bg-amber-light rounded-2xl border border-amber-warm/20">
-          <p className="text-xs text-bark/70">
+          <p className="text-[11px] text-bark/70" style={{ fontFamily: 'system-ui' }}>
             请先设置 API Key
             <button
               onClick={openSettings}
-              className="ml-1 text-amber-warm font-medium underline underline-offset-2 decoration-amber-warm/40 hover:decoration-amber-warm"
+              className="ml-1 text-amber-warm font-semibold underline underline-offset-2 decoration-amber-warm/40 hover:decoration-amber-warm"
             >
               前往设置
             </button>
@@ -117,21 +117,23 @@ export default function App() {
         </div>
       )}
 
-      {/* Stats Summary — click to expand */}
+      {/* Stats */}
       {enabled && stats && (
         <button
           onClick={() => setShowDetail(!showDetail)}
-          className="w-full mb-4 bg-white rounded-2xl p-3 shadow-card text-left transition-all duration-200 hover:shadow-soft"
+          className="stats-card w-full mb-4 rounded-2xl p-4 text-left"
         >
+          {/* Summary line */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-muted">已扫描</span>
-              <span className="text-sm font-serif font-semibold text-bark">{stats.scanned}</span>
-              <span className="text-xs text-muted">已过滤</span>
-              <span className="text-sm font-serif font-semibold text-coral">{stats.marked}</span>
-            </div>
+            <p className="text-[12px] text-bark/80 leading-relaxed" style={{ fontFamily: 'system-ui' }}>
+              已为你检查{' '}
+              <span className="font-bold text-bark">{stats.scanned}</span>
+              {' '}篇笔记，发现{' '}
+              <span className="font-bold text-coral">{stats.marked}</span>
+              {' '}篇低质内容
+            </p>
             <svg
-              className={`w-3.5 h-3.5 text-muted transition-transform duration-200 ${showDetail ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 text-muted/60 transition-transform duration-200 flex-shrink-0 ml-2 ${showDetail ? 'rotate-180' : ''}`}
               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             >
               <polyline points="6 9 12 15 18 9"/>
@@ -140,7 +142,7 @@ export default function App() {
 
           {/* Expanded detail */}
           {showDetail && (
-            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-sand/60">
+            <div className="detail-grid grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sand/50">
               <DetailRow label="缓存命中" value={stats.cacheHits} />
               <DetailRow label="API 调用" value={stats.apiCalls} />
               {stats.errors > 0 && <DetailRow label="错误" value={stats.errors} accent />}
@@ -150,17 +152,30 @@ export default function App() {
         </button>
       )}
 
-      {/* Settings Link */}
-      <button
-        onClick={openSettings}
-        className="w-full py-2.5 text-xs text-muted hover:text-bark rounded-xl hover:bg-sand/50 transition-all duration-200 flex items-center justify-center gap-1.5"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-        </svg>
-        设置
-      </button>
+      {/* Footer */}
+      <div className="flex gap-2">
+        <button
+          onClick={openSettings}
+          className="footer-btn flex-1 py-2 text-[11px] text-muted hover:text-bark rounded-xl flex items-center justify-center gap-1.5"
+          style={{ fontFamily: 'system-ui' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          设置
+        </button>
+        <button
+          onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('src/stats/index.html') })}
+          className="footer-btn flex-1 py-2 text-[11px] text-muted hover:text-bark rounded-xl flex items-center justify-center gap-1.5"
+          style={{ fontFamily: 'system-ui' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+          统计
+        </button>
+      </div>
     </div>
   )
 }
@@ -176,8 +191,8 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] text-muted">{label}</span>
-      <span className={`text-xs font-medium ${accent ? 'text-coral' : 'text-bark'}`}>{value}</span>
+      <span className="text-[10px] text-muted" style={{ fontFamily: 'system-ui' }}>{label}</span>
+      <span className={`text-[11px] font-semibold ${accent ? 'text-coral' : 'text-bark/70'}`} style={{ fontFamily: 'system-ui' }}>{value}</span>
     </div>
   )
 }
