@@ -18,6 +18,7 @@ const descCache = new Map<string, string>()
 let enabled = true
 let filterMode: FilterMode = 'blur'
 let enabledTags: LowQualityTag[] = [...DEFAULT_CONFIG.enabledTags]
+let prefetchLimit: number = DEFAULT_CONFIG.prefetchLimit
 /** Set to true when extension context is invalidated (extension reloaded) */
 let dead = false
 
@@ -33,6 +34,7 @@ try {
       enabled = stored.config.enabled ?? true
       filterMode = stored.config.filterMode ?? DEFAULT_CONFIG.filterMode
       enabledTags = stored.config.enabledTags ?? DEFAULT_CONFIG.enabledTags
+      prefetchLimit = stored.config.prefetchLimit ?? DEFAULT_CONFIG.prefetchLimit
     }
   }).catch(() => { die() })
 } catch { die() }
@@ -173,6 +175,7 @@ try {
     enabled = newConfig.enabled ?? enabled
     filterMode = newConfig.filterMode ?? filterMode
     enabledTags = newConfig.enabledTags ?? enabledTags
+    prefetchLimit = newConfig.prefetchLimit ?? prefetchLimit
 
     if (enabledChanged || modeChanged || tagsChanged) {
       rerenderAll()
@@ -182,15 +185,41 @@ try {
 
 // ── Feed API Interceptor (external script, safe from CSP) ──────
 
-/** Listen for desc data posted from the injected page script */
+/** Listen for feed data posted from the injected page script */
 window.addEventListener('message', (e) => {
   if (e.source !== window || e.data?.type !== 'XHS_RADAR_FEED_DATA') return
-  const items = e.data.items as Array<{ noteId: string; desc: string }>
+  const items = e.data.items as Array<{ noteId: string; desc: string; title: string; author: string; likeCount: string }>
   if (!items?.length) return
+
+  // Cache descs
   for (const item of items) {
     if (item.desc) descCache.set(item.noteId, item.desc)
   }
-  console.log(LOG_PREFIX, `Feed API intercepted: ${items.filter(i => i.desc).length}/${items.length} with desc`)
+
+  // Pre-analyze notes from feed API (not just DOM-visible ones)
+  // Skip notes we already have results for, respect prefetch limit
+  let newItems = items.filter(item => item.title && !resultMap.has(item.noteId))
+  const limit = prefetchLimit
+  if (limit > 0 && newItems.length > limit) {
+    newItems = newItems.slice(0, limit)
+  }
+  if (newItems.length > 0 && !dead) {
+    console.log(LOG_PREFIX, `Feed API: pre-analyzing ${newItems.length} notes (${items.length} total)`)
+    try {
+      chrome.runtime.sendMessage({
+        type: 'ANALYZE_NOTES',
+        payload: {
+          notes: newItems.map(item => ({
+            noteId: item.noteId,
+            title: item.title,
+            content: item.desc || '',
+            author: item.author || '',
+            likeCount: item.likeCount || '',
+          })),
+        },
+      }).catch(() => {})
+    } catch { /* context invalidated */ }
+  }
 })
 
 /** Inject feed-hook.js into page's main world via <script src> */

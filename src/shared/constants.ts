@@ -151,4 +151,5 @@ export const DEFAULT_CONFIG: UserConfig = {
   ],
   keywordRules: { ...DEFAULT_KEYWORD_RULES },
   customRules: [],
+  prefetchLimit: 40,
 }

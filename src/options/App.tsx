@@ -463,6 +463,28 @@ export default function App() {
           </div>
         </Section>
 
+        {/* ── Prefetch ── */}
+        <Section title="预加载" hint="从 feed API 预取笔记数量，滚动到时结果已就绪">
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={10}
+              value={config.prefetchLimit}
+              onChange={e => updateField('prefetchLimit', Number(e.target.value))}
+              className="flex-1"
+            />
+            <span className="text-sm font-serif font-semibold text-bark w-8 text-right">
+              {config.prefetchLimit || '不限'}
+            </span>
+          </div>
+          <div className="flex justify-between text-[11px] text-muted mt-1">
+            <span>关闭</span>
+            <span>100 条</span>
+          </div>
+        </Section>
+
         {/* ── Sensitivity ── */}
         <Section title="灵敏度">
           <div className="flex items-center gap-4">

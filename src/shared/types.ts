@@ -53,6 +53,8 @@ export interface UserConfig {
   keywordRules: Record<LowQualityTag, string[]>
   /** User-created custom filter rules */
   customRules: CustomRule[]
+  /** Max notes to pre-analyze from feed API (0 = unlimited) */
+  prefetchLimit: number
 }
 
 export interface CustomRule {
