@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "XHS Content Radar",
+  "name": "红薯雷达",
   "description": "小红书内容质量雷达 — 用 AI 识别低质内容，净化你的信息流",
   "version": "0.1.0",
   "icons": {

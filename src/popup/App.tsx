@@ -65,7 +65,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-[15px] font-bold text-bark leading-tight tracking-tight">
-              Content Radar
+              红薯雷达
             </h1>
             <p className="text-[10px] text-muted leading-tight mt-0.5" style={{ fontFamily: 'system-ui' }}>
               {enabled ? '正在守护你的信息流' : '守护已暂停'}

@@ -199,7 +199,7 @@ export default function App() {
             </svg>
           </div>
           <div>
-            <h1 className="font-serif text-2xl font-bold text-bark tracking-tight">Content Radar</h1>
+            <h1 className="font-serif text-2xl font-bold text-bark tracking-tight">红薯雷达</h1>
             <p className="text-xs text-muted mt-0.5">小红书内容质量守护</p>
           </div>
         </div>

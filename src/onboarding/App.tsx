@@ -130,7 +130,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
           <line x1="19" y1="12" x2="22" y2="12"/>
         </svg>
       </div>
-      <h1 className="font-serif text-2xl font-bold text-bark mb-2">Content Radar</h1>
+      <h1 className="font-serif text-2xl font-bold text-bark mb-2">红薯雷达</h1>
       <p className="text-sm text-muted mb-2">小红书内容质量守护</p>
       <p className="text-xs text-muted/80 leading-relaxed mb-8 max-w-xs mx-auto">
         利用 AI 自动识别小红书信息流中的低质内容（标题党、焦虑诱导、软广等），为你打造更健康的浏览体验。
@@ -288,7 +288,7 @@ function StepDone({ onFinish, onBack }: { onFinish: () => void; onBack: () => vo
       <div className="text-4xl mb-4">🎉</div>
       <h2 className="font-serif text-lg font-bold text-bark mb-2">设置完成</h2>
       <p className="text-xs text-muted mb-6 leading-relaxed max-w-xs mx-auto">
-        Content Radar 已准备就绪。打开小红书，开始享受更干净的信息流吧。
+        红薯雷达 已准备就绪。打开小红书，开始享受更干净的信息流吧。
       </p>
 
       <div className="space-y-3">

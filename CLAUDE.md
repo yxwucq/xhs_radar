@@ -1,4 +1,4 @@
-# XHS Content Radar (小红书内容质量雷达)
+# 红薯雷达 (小红书内容质量雷达)
 
 ## Project Overview
 Chrome Extension (MV3) that uses LLM to identify low-quality content on xiaohongshu.com and applies visual markers (blur/vanish). Read-only — no user action simulation, no server interaction.

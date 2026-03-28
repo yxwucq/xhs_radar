@@ -7,7 +7,7 @@
 ## 扩展名称
 
 ```
-XHS Content Radar - 小红书内容质量雷达
+红薯雷达
 ```
 
 ## 简短描述（132 字符以内）
@@ -19,7 +19,7 @@ XHS Content Radar - 小红书内容质量雷达
 ## 详细描述
 
 ```
-XHS Content Radar 是一款小红书内容质量守护工具，帮助你在浏览小红书时自动识别和过滤低质量内容。
+红薯雷达是一款小红书内容质量守护工具，帮助你在浏览小红书时自动识别和过滤低质量内容。
 
 主要功能：
 • AI 智能分析 — 利用大语言模型识别标题党、焦虑诱导、虚假信息、软广伪装、情绪操控等低质内容
@@ -44,7 +44,7 @@ XHS Content Radar 是一款小红书内容质量守护工具，帮助你在浏�
 ## English Description (optional, for international visibility)
 
 ```
-XHS Content Radar helps you identify and filter low-quality content on Xiaohongshu (Little Red Book).
+Hongshu Radar helps you identify and filter low-quality content on Xiaohongshu (Little Red Book).
 
 Features:
 • AI-powered analysis — Detect clickbait, anxiety-inducing, misleading, hidden ads, and emotionally manipulative content
@@ -67,7 +67,7 @@ Note: Requires your own AI API key (OpenAI-compatible or Anthropic) for AI analy
 ## 隐私政策 URL
 
 ```
-https://<your-github-username>.github.io/xhs-content-radar/privacy-policy.html
+https://<your-github-username>.github.io/hongshu-radar/privacy-policy.html
 ```
 
 > 将 `docs/privacy-policy.html` 部署到 GitHub Pages 后填入实际 URL。
@@ -76,7 +76,8 @@ https://<your-github-username>.github.io/xhs-content-radar/privacy-policy.html
 
 需要自行截取，建议准备以下截图（1280x800 或 640x400）：
 
-1. **小红书信息流 + 模糊效果** — 展示 Blur 模式下笔记卡片被模糊的效果
-2. **Popup 弹窗** — 展示开关、模式切换、统计数据
-3. **设置页面** — 展示 API 配置、过滤规则、自定义规则
-4. **隐藏模式效果** — 展示 Vanish 模式下低质内容被移除后的干净信息流
+1. **信息流过滤效果** — 展示 Blur 模式下笔记卡片被模糊 + 分数显示的效果
+2. **详情分析** — 点开笔记后左上角悬浮分析标签
+3. **Popup 弹窗** — 展示开关、模式切换、统计数据
+4. **设置页面** — 展示 API 配置、灵敏度调节、自定义规则
+5. **统计页面** — 趋势图表，展示过滤效果
