@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#FF4D6A"/>
+      <stop offset="100%" stop-color="#E8203A"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="0.5" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- Shield outline -->
+  <path d="M64,20 Q96,30 96,38 C96,65 82,90 64,102 C46,90 32,65 32,38 Q32,30 64,20 Z"
+        fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="3.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Radar rings inside shield -->
+  <circle cx="64" cy="58" r="12" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+  <circle cx="64" cy="58" r="22" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+  <circle cx="64" cy="58" r="32" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.8"/>
+
+  <!-- Radar sweep -->
+  <path d="M64,58 L64,26 A32,32 0 0,1 86.6,44 Z" fill="url(#sweep)" opacity="0.7"/>
+
+  <!-- Center dot -->
+  <circle cx="64" cy="58" r="3" fill="white" opacity="0.95"/>
+
+  <!-- Blip dots -->
+  <circle cx="54" cy="50" r="2" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="76" cy="68" r="1.8" fill="rgba(255,255,255,0.5)"/>
+</svg>

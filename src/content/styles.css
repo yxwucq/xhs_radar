@@ -120,10 +120,9 @@
   position: absolute !important;
   top: 6px !important;
   left: 6px !important;
-  min-width: 22px !important;
+  width: 22px !important;
   height: 22px !important;
-  padding: 0 4px !important;
-  border-radius: 11px !important;
+  border-radius: 50% !important;
   z-index: 99 !important;
   display: flex !important;
   align-items: center !important;

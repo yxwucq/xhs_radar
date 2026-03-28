@@ -23,17 +23,13 @@ export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: st
   indicator.className = `xhs-radar-status xhs-radar-status-${status}`
   indicator.setAttribute('title', detail ?? status)
 
-  if (score != null && status !== 'pending' && status !== 'error') {
-    indicator.textContent = String(score)
-  } else {
-    const symbols: Record<CardStatus, string> = {
-      pending: '',
-      pass: '\u2713',
-      fail: '\u2717',
-      error: '!',
-    }
-    indicator.textContent = symbols[status]
+  const symbols: Record<CardStatus, string> = {
+    pending: '',
+    pass: '\u2713',
+    fail: '\u2717',
+    error: '!',
   }
+  indicator.textContent = symbols[status]
 }
 
 /**

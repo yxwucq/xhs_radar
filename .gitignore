@@ -26,3 +26,7 @@ fixtures/*.html
 *.db
 *.db-shm
 *.db-wal
+
+# Chrome Web Store submission
+*.zip
+screenshots/
