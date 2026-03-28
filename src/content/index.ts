@@ -12,8 +12,6 @@ const LOG_PREFIX = '[XHS Radar]'
 const cardMap = new Map<string, HTMLElement>()
 /** noteId → analysis result (for re-rendering on mode switch) */
 const resultMap = new Map<string, AnalysisResult>()
-/** noteId → desc from feed API (populated by interceptor) */
-const descCache = new Map<string, string>()
 
 let enabled = true
 let filterMode: FilterMode = 'blur'
@@ -157,9 +155,6 @@ function handleNewNotes(notes: NoteData[]): void {
       setCardStatus(note.element, isFallback ? 'error' : cached.isLowQuality ? 'fail' : 'pass')
       continue
     }
-    if (!note.content && descCache.has(note.noteId)) {
-      note.content = descCache.get(note.noteId)!
-    }
     setCardStatus(note.element, 'pending', note.title)
     uncached.push(note)
   }
@@ -218,68 +213,9 @@ try {
   })
 } catch { die() }
 
-// ── Feed API Interceptor (external script, safe from CSP) ──────
+// Feed API hook disabled — XHS CSP blocks all injection methods.
+// Analysis uses title + author + likeCount only.
 
-/** Listen for feed data posted from the injected page script */
-window.addEventListener('message', (e) => {
-  if (e.source !== window || e.data?.type !== 'XHS_RADAR_FEED_DATA') return
-  const items = e.data.items as Array<{ noteId: string; desc: string; title: string; author: string; likeCount: string }>
-  if (!items?.length) return
-
-  // Cache descs
-  for (const item of items) {
-    if (item.desc) descCache.set(item.noteId, item.desc)
-  }
-
-  // ── Local keyword matching (instant, no round-trip) ──
-  let keywordHits = 0
-  for (const item of items) {
-    if (!item.title || resultMap.has(item.noteId)) continue
-    const result = localKeywordMatch(item.noteId, item.title)
-    if (result) {
-      resultMap.set(item.noteId, result)
-      keywordHits++
-    }
-  }
-
-  // ── Send remaining to background for LLM analysis ──
-  let newItems = items.filter(item => item.title && !resultMap.has(item.noteId))
-  const limit = prefetchLimit
-  if (limit > 0 && newItems.length > limit) {
-    newItems = newItems.slice(0, limit)
-  }
-  if (newItems.length > 0 && !dead) {
-    try {
-      chrome.runtime.sendMessage({
-        type: 'ANALYZE_NOTES',
-        payload: {
-          notes: newItems.map(item => ({
-            noteId: item.noteId,
-            title: item.title,
-            content: item.desc || '',
-            author: item.author || '',
-            likeCount: item.likeCount || '',
-          })),
-        },
-      }).catch(() => {})
-    } catch { /* context invalidated */ }
-  }
-
-  console.log(LOG_PREFIX, `Feed API: ${keywordHits} keyword hits (instant), ${newItems.length} to LLM`)
-})
-
-/** Inject feed-hook.js into page's main world via <script src> */
-function injectFeedHook(): void {
-  try {
-    const url = chrome.runtime.getURL('feed-hook.js')
-    const script = document.createElement('script')
-    script.src = url
-    script.onload = () => script.remove()
-    ;(document.head || document.documentElement).appendChild(script)
-  } catch {
-    // Extension context may be invalidated — ignore silently
-  }
-}
 
 // ── Init ──────────────────────────────────────────
 
@@ -290,11 +226,9 @@ function init(): void {
   clearAllMarks()
   document.querySelectorAll('[data-xhs-radar-status]').forEach(el => el.remove())
 
-  // Inject feed API interceptor (must be before observer to catch initial feed load)
-  injectFeedHook()
-
   const observer = new FeedObserver(handleNewNotes)
   observer.start()
+
 }
 
 init()
