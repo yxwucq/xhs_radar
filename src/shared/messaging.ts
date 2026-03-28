@@ -49,6 +49,24 @@ export interface GetDailyStatsMessage {
   type: 'GET_DAILY_STATS'
 }
 
+export interface AnalyzeDetailMessage {
+  type: 'ANALYZE_DETAIL'
+  payload: {
+    noteId: string
+    title: string
+    content: string
+    author: string
+  }
+}
+
+export interface DetailResultMessage {
+  type: 'DETAIL_RESULT'
+  payload: {
+    noteId: string
+    result: AnalysisResult
+  }
+}
+
 /** Union of all messages that can be sent */
 export type Message =
   | AnalyzeNotesMessage
@@ -59,6 +77,8 @@ export type Message =
   | ToggleEnabledMessage
   | SetFilterModeMessage
   | GetDailyStatsMessage
+  | AnalyzeDetailMessage
+  | DetailResultMessage
 
 // ── Response types ─────────────────────────────────────────
 
@@ -68,6 +88,7 @@ export type MessageResponse<T extends Message['type']> =
   T extends 'TOGGLE_ENABLED' ? { ok: boolean } :
   T extends 'SET_FILTER_MODE' ? { ok: boolean } :
   T extends 'CONFIG_CHANGED' ? { ok: boolean } :
+  T extends 'ANALYZE_DETAIL' ? { received: boolean } :
   void
 
 // ── Send helpers ───────────────────────────────────────────

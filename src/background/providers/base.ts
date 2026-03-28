@@ -38,43 +38,64 @@ const VALID_TAGS = new Set<string>([
  * Parse a single line from LLM response into an AnalysisResult.
  * Returns null if the line doesn't match the expected format.
  *
- *   "1:OK"  →  { noteId, score: 80, isLowQuality: false, ... }
- *   "2:LOW clickbait 标题夸张"  →  { noteId, score: 20, isLowQuality: true, tags: ['clickbait'], ... }
+ * Score-based format:
+ *   "1:85"                              →  score=85, normal
+ *   "2:15 clickbait 标题夸张"            →  score=15, low quality
+ *
+ * Legacy OK/LOW format (still supported for backwards compat):
+ *   "1:OK"                              →  score=80
+ *   "2:LOW clickbait 标题夸张"           →  score=20
  */
 export function parseSingleLine(
   line: string,
-  notes: NoteInput[]
+  notes: NoteInput[],
+  sensitivity: number = 50
 ): AnalysisResult | null {
-  const match = line.match(/(\d+)\s*[:：]\s*(LOW|OK)(?:\s+(\S+))?(?:\s+(.+))?/i)
-  if (!match) return null
+  // Try score-based format: "序号:分数 [类型 理由]"
+  const scoreMatch = line.match(/(\d+)\s*[:：]\s*(\d+)(?:\s+(\S+))?(?:\s+(.+))?/)
+  if (scoreMatch) {
+    const index = parseInt(scoreMatch[1])
+    const note = notes[index - 1]
+    if (!note) return null
 
-  const index = parseInt(match[1])
-  const note = notes[index - 1]
-  if (!note) return null
+    const score = Math.max(0, Math.min(100, parseInt(scoreMatch[2])))
+    const threshold = sensitivity
+    const isLowQuality = score < threshold
 
-  const isLow = match[2].toUpperCase() === 'LOW'
+    const tagStr = scoreMatch[3] ?? ''
+    const tags: LowQualityTag[] = VALID_TAGS.has(tagStr)
+      ? [tagStr as LowQualityTag]
+      : []
 
-  if (!isLow) {
     return {
       noteId: note.noteId,
-      score: 80,
-      isLowQuality: false,
-      tags: [],
-      reason: '',
+      score,
+      isLowQuality,
+      tags,
+      reason: (scoreMatch[4]?.trim() ?? '').slice(0, 30),
     }
   }
 
-  const tagStr = match[3] ?? ''
-  const tags: LowQualityTag[] = VALID_TAGS.has(tagStr)
+  // Legacy OK/LOW format
+  const legacyMatch = line.match(/(\d+)\s*[:：]\s*(LOW|OK)(?:\s+(\S+))?(?:\s+(.+))?/i)
+  if (!legacyMatch) return null
+
+  const index = parseInt(legacyMatch[1])
+  const note = notes[index - 1]
+  if (!note) return null
+
+  const isLow = legacyMatch[2].toUpperCase() === 'LOW'
+  const tagStr = legacyMatch[3] ?? ''
+  const tags: LowQualityTag[] = isLow && VALID_TAGS.has(tagStr)
     ? [tagStr as LowQualityTag]
     : []
 
   return {
     noteId: note.noteId,
-    score: 20,
-    isLowQuality: true,
+    score: isLow ? 20 : 80,
+    isLowQuality: isLow,
     tags,
-    reason: (match[4]?.trim() ?? '').slice(0, 30),
+    reason: isLow ? (legacyMatch[4]?.trim() ?? '').slice(0, 30) : '',
   }
 }
 
@@ -84,13 +105,14 @@ export function parseSingleLine(
  */
 export function parseLineResponse(
   raw: string,
-  notes: NoteInput[]
+  notes: NoteInput[],
+  sensitivity: number = 50
 ): AnalysisResult[] {
   const lines = raw.trim().split('\n')
   const parsed = new Map<string, AnalysisResult>()
 
   for (const line of lines) {
-    const result = parseSingleLine(line, notes)
+    const result = parseSingleLine(line, notes, sensitivity)
     if (result) parsed.set(result.noteId, result)
   }
 

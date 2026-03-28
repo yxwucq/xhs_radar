@@ -31,6 +31,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('hidden_ad')
     expect(prompt).toContain('emotional_manipulation')
   })
+
+  it('includes boundary guidance to reduce false positives', () => {
+    const prompt = buildSystemPrompt(50)
+    expect(prompt).toContain('不算标题党')
+    expect(prompt).toContain('放宽标准')
+  })
 })
 
 describe('buildBatchPrompt (detailed)', () => {
@@ -40,10 +46,10 @@ describe('buildBatchPrompt (detailed)', () => {
     expect(prompt).toContain('2. 周末去了趟京都，分享一些照片')
   })
 
-  it('requests line-based format with tag and reason', () => {
+  it('requests score-based format with tag and reason', () => {
     const prompt = buildBatchPrompt(sampleNotes)
-    expect(prompt).toContain('序号:OK')
-    expect(prompt).toContain('序号:LOW 类型 理由')
+    expect(prompt).toContain('序号:分数')
+    expect(prompt).toContain('0-100')
   })
 })
 
@@ -54,10 +60,10 @@ describe('buildLiteBatchPrompt', () => {
     expect(prompt).toContain('2. 周末去了趟京都，分享一些照片')
   })
 
-  it('requests only LOW/OK format', () => {
+  it('requests score-only format', () => {
     const prompt = buildLiteBatchPrompt(sampleNotes)
-    expect(prompt).toContain('序号:OK')
-    expect(prompt).toContain('序号:LOW')
+    expect(prompt).toContain('序号:分数')
+    expect(prompt).toContain('0-100')
     // Should NOT ask for tags or reason
     expect(prompt).not.toContain('类型')
     expect(prompt).not.toContain('理由')

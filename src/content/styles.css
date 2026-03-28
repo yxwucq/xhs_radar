@@ -120,14 +120,15 @@
   position: absolute !important;
   top: 6px !important;
   left: 6px !important;
-  width: 22px !important;
+  min-width: 22px !important;
   height: 22px !important;
-  border-radius: 50% !important;
+  padding: 0 4px !important;
+  border-radius: 11px !important;
   z-index: 99 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   line-height: 1 !important;
   pointer-events: none !important;
@@ -159,4 +160,62 @@
 @keyframes xhs-radar-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ── Detail Overlay Floating Badge ──────── */
+
+.xhs-radar-detail-banner {
+  position: absolute !important;
+  top: 12px !important;
+  left: 12px !important;
+  z-index: 1000 !important;
+  padding: 4px 10px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  white-space: nowrap !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  pointer-events: auto !important;
+  cursor: default !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  animation: xhs-radar-detail-fade-in 0.2s ease-out !important;
+}
+
+@keyframes xhs-radar-detail-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.xhs-radar-detail-banner-loading {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #713f12 !important;
+}
+
+.xhs-radar-detail-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: #f59e0b !important;
+  animation: xhs-radar-pulse 1s ease-in-out infinite !important;
+}
+
+.xhs-radar-detail-banner-low {
+  background: rgba(254, 226, 226, 0.9) !important;
+  color: #dc2626 !important;
+}
+
+.xhs-radar-detail-banner-ok {
+  background: rgba(220, 252, 231, 0.9) !important;
+  color: #16a34a !important;
+  animation: xhs-radar-detail-fade-in 0.2s ease-out, xhs-radar-detail-fade-out 0.4s ease-in 2s forwards !important;
+}
+
+@keyframes xhs-radar-detail-fade-out {
+  to { opacity: 0; }
 }

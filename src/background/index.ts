@@ -93,6 +93,17 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
       sendResponse({ ok: true })
       return false
 
+    case 'ANALYZE_DETAIL': {
+      const detailTabId = sender.tab?.id
+      sendResponse({ received: true })
+      handleDetailAnalyze(message.payload, detailTabId ?? undefined)
+        .catch(err => {
+          console.log(LOG_PREFIX, 'Detail analysis failed:', err)
+          stats.errors++
+        })
+      return false
+    }
+
     default:
       return false
   }
@@ -105,6 +116,45 @@ function pushToTab(tabId: number, results: AnalysisResult[]): void {
     type: 'ANALYZE_RESULT',
     payload: { results },
   }).catch(() => {})
+}
+
+async function handleDetailAnalyze(
+  payload: { noteId: string; title: string; content: string; author: string },
+  tabId?: number
+): Promise<void> {
+  if (!config.enabled || !config.apiKey) return
+
+  stats.scanned++
+  stats.apiCalls++
+
+  // Use single-note analysis through existing gateway
+  const noteInput: NoteInput = {
+    noteId: payload.noteId,
+    title: payload.title,
+    content: payload.content,
+    author: payload.author,
+    likeCount: '',
+  }
+
+  const results = await gateway.analyze(
+    [noteInput], config.sensitivity,
+    { mode: 'detailed', customRules: config.customRules }
+  )
+
+  const result = results[0]
+  if (result) {
+    cache.setOne(result) // overwrite any title-only cached result
+    if (result.isLowQuality) stats.marked++
+
+    if (tabId != null) {
+      chrome.tabs.sendMessage(tabId, {
+        type: 'DETAIL_RESULT',
+        payload: { noteId: payload.noteId, result },
+      }).catch(() => {})
+    }
+  }
+
+  dailyStats.record(1, result?.isLowQuality ? 1 : 0, 1)
 }
 
 async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> {

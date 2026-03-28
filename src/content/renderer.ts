@@ -9,12 +9,9 @@ export type CardStatus = 'pending' | 'pass' | 'fail' | 'error'
 
 /**
  * Show a small status indicator on a card.
- * - pending: pulsing yellow dot (processing)
- * - pass: green checkmark (normal quality)
- * - fail: red cross (low quality)
- * - error: orange warning (API failed, not analyzed)
+ * Displays the numeric score when available, otherwise a symbol.
  */
-export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: string): void {
+export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: string, score?: number): void {
   let indicator = card.querySelector(`[${STATUS_ATTR}]`) as HTMLElement | null
   if (!indicator) {
     indicator = document.createElement('div')
@@ -26,13 +23,17 @@ export function setCardStatus(card: HTMLElement, status: CardStatus, detail?: st
   indicator.className = `xhs-radar-status xhs-radar-status-${status}`
   indicator.setAttribute('title', detail ?? status)
 
-  const symbols: Record<CardStatus, string> = {
-    pending: '',
-    pass: '\u2713',
-    fail: '\u2717',
-    error: '!',
+  if (score != null && status !== 'pending' && status !== 'error') {
+    indicator.textContent = String(score)
+  } else {
+    const symbols: Record<CardStatus, string> = {
+      pending: '',
+      pass: '\u2713',
+      fail: '\u2717',
+      error: '!',
+    }
+    indicator.textContent = symbols[status]
   }
-  indicator.textContent = symbols[status]
 }
 
 /**

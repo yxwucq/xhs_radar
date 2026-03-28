@@ -56,7 +56,21 @@ export const XHS_SELECTORS = {
     '.like-wrapper .count',
     '.like-wrapper span.count',
   ],
+  /** Title inside the note detail overlay */
+  detailTitle: [
+    '#detail-title',
+    '.note-content .title',
+  ],
+
+  /** Body/description text inside the note detail overlay */
+  detailDesc: [
+    '#detail-desc',
+    '.note-content .desc',
+  ],
 } as const
+
+/** Data attribute to mark processed detail overlays */
+export const DETAIL_PROCESSED_ATTR = 'data-xhs-radar-detail-processed'
 
 /** Regex patterns to extract note ID from URLs */
 export const NOTE_ID_PATTERNS = [

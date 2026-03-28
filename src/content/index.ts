@@ -4,6 +4,7 @@ import type { Message } from '@/shared/messaging'
 import { DEFAULT_CONFIG } from '@/shared/constants'
 import { FeedObserver } from './observer'
 import { AnalysisQueue } from './queue'
+import { DetailObserver } from './detail-observer'
 import { applyBlurMark, applyVanishMark, removeMark, clearAllMarks, setCardStatus } from './renderer'
 
 const LOG_PREFIX = '[XHS Radar]'
@@ -131,9 +132,9 @@ function handleResults(results: AnalysisResult[]): void {
         tags: result.tags,
         reason: result.reason,
       })
-      setCardStatus(card, 'fail', `score=${result.score} ${result.reason ?? ''}`)
+      setCardStatus(card, 'fail', `score=${result.score} ${result.reason ?? ''}`, result.score)
     } else {
-      setCardStatus(card, 'pass', `score=${result.score}`)
+      setCardStatus(card, 'pass', `score=${result.score}`, result.score)
     }
 
     applyMark(card, result)
@@ -141,6 +142,21 @@ function handleResults(results: AnalysisResult[]): void {
 }
 
 const queue = new AnalysisQueue()
+
+/** Handle detail overlay analysis results — retroactively mark the feed card. */
+function handleDetailResult(noteId: string, result: AnalysisResult): void {
+  resultMap.set(noteId, result)
+  const card = cardMap.get(noteId)
+  if (card) {
+    applyMark(card, result)
+    const isFallback = !result.isLowQuality && result.reason && /失败|超时|无效|未设置|跳过/.test(result.reason)
+    const status = isFallback ? 'error' : result.isLowQuality ? 'fail' : 'pass'
+    const detail = result.isLowQuality ? `score=${result.score} ${result.reason ?? ''}` : `score=${result.score}`
+    setCardStatus(card, status, detail, result.score)
+  }
+}
+
+const detailObserver = new DetailObserver(handleDetailResult)
 
 function handleNewNotes(notes: NoteData[]): void {
   if (!enabled || dead) return
@@ -152,7 +168,7 @@ function handleNewNotes(notes: NoteData[]): void {
     if (cached) {
       applyMark(note.element, cached)
       const isFallback = !cached.isLowQuality && cached.reason && /失败|超时|无效|未设置|跳过/.test(cached.reason)
-      setCardStatus(note.element, isFallback ? 'error' : cached.isLowQuality ? 'fail' : 'pass')
+      setCardStatus(note.element, isFallback ? 'error' : cached.isLowQuality ? 'fail' : 'pass', undefined, cached.score)
       continue
     }
     setCardStatus(note.element, 'pending', note.title)
@@ -169,6 +185,10 @@ try {
     switch (message.type) {
       case 'ANALYZE_RESULT':
         handleResults(message.payload.results)
+        break
+
+      case 'DETAIL_RESULT':
+        detailObserver.handleResult(message.payload.noteId, message.payload.result)
         break
 
       case 'TOGGLE_ENABLED':
@@ -229,6 +249,7 @@ function init(): void {
   const observer = new FeedObserver(handleNewNotes)
   observer.start()
 
+  detailObserver.start()
 }
 
 init()

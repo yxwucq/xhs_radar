@@ -66,7 +66,7 @@ export class AnthropicProvider implements LLMProvider {
       throw new Error('Anthropic returned empty content')
     }
 
-    return parseLineResponse(content, notes)
+    return parseLineResponse(content, notes, sensitivity)
   }
 
   async analyzeStream(
@@ -122,7 +122,7 @@ export class AnthropicProvider implements LLMProvider {
               const completeLine = contentBuffer.slice(0, newlineIdx)
               contentBuffer = contentBuffer.slice(newlineIdx + 1)
 
-              const result = parseSingleLine(completeLine, notes)
+              const result = parseSingleLine(completeLine, notes, sensitivity)
               if (result && !emitted.has(result.noteId)) {
                 emitted.set(result.noteId, result)
                 onResult(result)
@@ -133,7 +133,7 @@ export class AnthropicProvider implements LLMProvider {
       }
 
       if (contentBuffer.trim()) {
-        const result = parseSingleLine(contentBuffer.trim(), notes)
+        const result = parseSingleLine(contentBuffer.trim(), notes, sensitivity)
         if (result && !emitted.has(result.noteId)) {
           emitted.set(result.noteId, result)
           onResult(result)
