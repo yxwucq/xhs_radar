@@ -1,5 +1,5 @@
 import './styles.css'
-import type { NoteData, AnalysisResult, FilterMode, LowQualityTag } from '@/shared/types'
+import type { NoteData, AnalysisResult, FilterMode, LowQualityTag, CustomRule } from '@/shared/types'
 import type { Message } from '@/shared/messaging'
 import { DEFAULT_CONFIG } from '@/shared/constants'
 import { FeedObserver } from './observer'
@@ -19,6 +19,37 @@ let enabled = true
 let filterMode: FilterMode = 'blur'
 let enabledTags: LowQualityTag[] = [...DEFAULT_CONFIG.enabledTags]
 let prefetchLimit: number = DEFAULT_CONFIG.prefetchLimit
+let keywordRules: Record<LowQualityTag, string[]> = { ...DEFAULT_CONFIG.keywordRules }
+let customRules: CustomRule[] = []
+
+/**
+ * Local keyword matching — runs in content script, no round-trip to background.
+ * Returns AnalysisResult if keyword matched, null otherwise.
+ */
+function localKeywordMatch(noteId: string, title: string): AnalysisResult | null {
+  const lowerTitle = title.toLowerCase()
+
+  // Check built-in rules
+  for (const tag of enabledTags) {
+    for (const kw of keywordRules[tag] ?? []) {
+      if (lowerTitle.includes(kw.toLowerCase())) {
+        return { noteId, score: 20, isLowQuality: true, tags: [tag], reason: `关键词: ${kw}` }
+      }
+    }
+  }
+
+  // Check custom rules
+  for (const rule of customRules) {
+    if (!rule.enabled) continue
+    for (const kw of rule.keywords) {
+      if (lowerTitle.includes(kw.toLowerCase())) {
+        return { noteId, score: 20, isLowQuality: true, tags: [], reason: `关键词: ${kw}` }
+      }
+    }
+  }
+
+  return null
+}
 /** Set to true when extension context is invalidated (extension reloaded) */
 let dead = false
 
@@ -35,6 +66,8 @@ try {
       filterMode = stored.config.filterMode ?? DEFAULT_CONFIG.filterMode
       enabledTags = stored.config.enabledTags ?? DEFAULT_CONFIG.enabledTags
       prefetchLimit = stored.config.prefetchLimit ?? DEFAULT_CONFIG.prefetchLimit
+      keywordRules = stored.config.keywordRules ?? DEFAULT_CONFIG.keywordRules
+      customRules = stored.config.customRules ?? []
     }
   }).catch(() => { die() })
 } catch { die() }
@@ -176,6 +209,8 @@ try {
     filterMode = newConfig.filterMode ?? filterMode
     enabledTags = newConfig.enabledTags ?? enabledTags
     prefetchLimit = newConfig.prefetchLimit ?? prefetchLimit
+    keywordRules = newConfig.keywordRules ?? keywordRules
+    customRules = newConfig.customRules ?? customRules
 
     if (enabledChanged || modeChanged || tagsChanged) {
       rerenderAll()
@@ -196,15 +231,24 @@ window.addEventListener('message', (e) => {
     if (item.desc) descCache.set(item.noteId, item.desc)
   }
 
-  // Pre-analyze notes from feed API (not just DOM-visible ones)
-  // Skip notes we already have results for, respect prefetch limit
+  // ── Local keyword matching (instant, no round-trip) ──
+  let keywordHits = 0
+  for (const item of items) {
+    if (!item.title || resultMap.has(item.noteId)) continue
+    const result = localKeywordMatch(item.noteId, item.title)
+    if (result) {
+      resultMap.set(item.noteId, result)
+      keywordHits++
+    }
+  }
+
+  // ── Send remaining to background for LLM analysis ──
   let newItems = items.filter(item => item.title && !resultMap.has(item.noteId))
   const limit = prefetchLimit
   if (limit > 0 && newItems.length > limit) {
     newItems = newItems.slice(0, limit)
   }
   if (newItems.length > 0 && !dead) {
-    console.log(LOG_PREFIX, `Feed API: pre-analyzing ${newItems.length} notes (${items.length} total)`)
     try {
       chrome.runtime.sendMessage({
         type: 'ANALYZE_NOTES',
@@ -220,6 +264,8 @@ window.addEventListener('message', (e) => {
       }).catch(() => {})
     } catch { /* context invalidated */ }
   }
+
+  console.log(LOG_PREFIX, `Feed API: ${keywordHits} keyword hits (instant), ${newItems.length} to LLM`)
 })
 
 /** Inject feed-hook.js into page's main world via <script src> */
