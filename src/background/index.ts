@@ -186,8 +186,8 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    console.log(LOG_PREFIX, 'Extension installed')
-    chrome.runtime.openOptionsPage()
+    console.log(LOG_PREFIX, 'Extension installed — opening onboarding')
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/onboarding/index.html') })
   }
 })
 

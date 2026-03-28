@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         stats: resolve(__dirname, 'src/stats/index.html'),
+        onboarding: resolve(__dirname, 'src/onboarding/index.html'),
       },
     },
   },

@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: linear-gradient(160deg, #FBF8F4 0%, #F5F0E8 100%);
+  color: #3D3529;
+  min-height: 100vh;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #EDE8E1;
+  border-radius: 12px;
+  font-size: 13px;
+  background: white;
+  color: #3D3529;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #D4845A;
+  box-shadow: 0 0 0 3px rgba(212, 132, 90, 0.1);
+}
+.input-field::placeholder { color: #C4BDB4; }
+.input-field.mono { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; }
+
+input[type="radio"] { accent-color: #D4845A; }
+
+/* Step transition */
+.step-enter {
+  animation: step-in 0.3s ease;
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Pulse for pending indicator mock */
+@keyframes mock-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}

@@ -490,6 +490,12 @@ export default function App() {
             {cacheCleared ? '已清除 ✓' : '清除缓存'}
           </button>
           <span className="text-[11px] text-muted">设置修改后自动保存</span>
+          <button
+            onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('src/onboarding/index.html') })}
+            className="text-[11px] text-muted hover:text-amber-warm transition-colors underline underline-offset-2 ml-auto"
+          >
+            查看教程
+          </button>
         </div>
       </div>
     </div>

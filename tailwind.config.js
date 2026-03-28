@@ -4,6 +4,7 @@ export default {
     'src/popup/**/*.{html,tsx}',
     'src/options/**/*.{html,tsx}',
     'src/stats/**/*.{html,tsx}',
+    'src/onboarding/**/*.{html,tsx}',
   ],
   theme: {
     extend: {
