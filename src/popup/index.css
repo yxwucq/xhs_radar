@@ -54,6 +54,15 @@ body {
   box-shadow: 0 4px 16px rgba(61, 53, 41, 0.06);
 }
 
+.session-toggle {
+  transition: color 0.2s ease;
+  border-radius: 12px;
+}
+
+.session-toggle:hover {
+  color: #3D3529;
+}
+
 /* Expand/collapse animation */
 .detail-grid {
   animation: slide-down 0.2s ease;

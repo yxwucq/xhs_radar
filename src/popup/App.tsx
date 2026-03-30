@@ -132,37 +132,50 @@ export default function App() {
 
       {/* Stats */}
       {enabled && stats && summary && (
-        <button
-          onClick={() => setShowDetail(!showDetail)}
-          className="stats-card w-full mb-4 rounded-2xl p-4 text-left"
-        >
-          {/* Summary line */}
-          <div className="flex items-center justify-between">
-            <p className="text-[12px] text-bark/80 leading-relaxed" style={{ fontFamily: 'system-ui' }}>
+        <div className="stats-card w-full mb-4 rounded-2xl p-4">
+          <div className="mb-2">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-muted/80" style={{ fontFamily: 'system-ui' }}>
+              近 30 天累计
+            </p>
+            <p className="text-[12px] text-bark/80 leading-relaxed mt-1.5 pr-1" style={{ fontFamily: 'system-ui' }}>
               已为你检查{' '}
               <span className="font-bold text-bark">{summary.scanned}</span>
               {' '}篇笔记，发现{' '}
               <span className="font-bold text-coral">{summary.marked}</span>
               {' '}篇低质内容
             </p>
+          </div>
+
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            className="session-toggle w-full flex items-center justify-between mt-3 pt-3 border-t border-sand/50 text-left"
+            style={{ fontFamily: 'system-ui' }}
+          >
+            <div>
+              <div className="text-[11px] font-medium text-bark/85">当前会话</div>
+              <div className="text-[10px] text-muted mt-0.5">
+                本轮检查 {stats.scanned} · 过滤 {stats.marked}
+              </div>
+            </div>
             <svg
-              className={`w-3.5 h-3.5 text-muted/60 transition-transform duration-200 flex-shrink-0 ml-2 ${showDetail ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 text-muted transition-transform duration-200 ${showDetail ? 'rotate-180' : ''}`}
               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             >
               <polyline points="6 9 12 15 18 9"/>
             </svg>
-          </div>
+          </button>
 
-          {/* Expanded detail */}
           {showDetail && (
             <div className="detail-grid grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sand/50">
+              <DetailRow label="本轮检查" value={stats.scanned} />
+              <DetailRow label="本轮过滤" value={stats.marked} accent={stats.marked > 0} />
               <DetailRow label="缓存命中" value={stats.cacheHits} />
               <DetailRow label="API 调用" value={stats.apiCalls} />
               {stats.errors > 0 && <DetailRow label="错误" value={stats.errors} accent />}
               {stats.cacheSize != null && <DetailRow label="缓存条数" value={stats.cacheSize} />}
             </div>
           )}
-        </button>
+        </div>
       )}
 
       {/* Footer */}

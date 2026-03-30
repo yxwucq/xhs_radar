@@ -21,6 +21,16 @@ let stats: SessionStats = {
   errors: 0,
 }
 
+function resetSessionStats(): void {
+  stats = {
+    scanned: 0,
+    marked: 0,
+    cacheHits: 0,
+    apiCalls: 0,
+    errors: 0,
+  }
+}
+
 /** Load config and cache on startup */
 async function init(): Promise<void> {
   try {
@@ -73,7 +83,10 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
 
     case 'CLEAR_DAILY_STATS':
       dailyStats.clear()
-        .then(() => sendResponse({ ok: true }))
+        .then(() => {
+          resetSessionStats()
+          sendResponse({ ok: true })
+        })
         .catch(() => sendResponse({ ok: false }))
       return true
 
