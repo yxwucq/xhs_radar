@@ -106,6 +106,33 @@ describe('AnalysisCache', () => {
     expect(cache.get('note_0001')).toBeNull()
   })
 
+  it('keeps a re-accessed entry even when all writes share the same timestamp', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-30T12:00:00.000Z'))
+
+    const cache = new AnalysisCache()
+    await cache.load()
+
+    const results: AnalysisResult[] = []
+    for (let i = 0; i < 2000; i++) {
+      results.push(makeResult(`same_time_${String(i).padStart(4, '0')}`))
+    }
+    await cache.set(results)
+
+    cache.get('same_time_0000')
+
+    const extra: AnalysisResult[] = []
+    for (let i = 2000; i < 2010; i++) {
+      extra.push(makeResult(`same_time_${i}`))
+    }
+    await cache.set(extra)
+
+    expect(cache.get('same_time_0000')).not.toBeNull()
+    expect(cache.get('same_time_0001')).toBeNull()
+
+    vi.useRealTimers()
+  })
+
   it('clears all entries', async () => {
     const cache = new AnalysisCache()
     await cache.load()

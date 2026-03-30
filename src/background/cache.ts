@@ -23,6 +23,7 @@ export class AnalysisCache {
   private store: CacheStore = {}
   private loaded = false
   private persistTimer: ReturnType<typeof setTimeout> | null = null
+  private accessCounter = 0
 
   /** Load cache from storage. Call once on startup. */
   async load(): Promise<void> {
@@ -30,6 +31,7 @@ export class AnalysisCache {
       const data = await chrome.storage.local.get(STORAGE_KEY)
       this.store = data[STORAGE_KEY] ?? {}
       this.purgeExpired()
+      this.reseedAccessCounter()
       this.loaded = true
       console.log(LOG_PREFIX, `Loaded ${Object.keys(this.store).length} entries`)
     } catch (e) {
@@ -50,7 +52,7 @@ export class AnalysisCache {
     }
 
     // Update access time for LRU
-    entry.lastAccess = Date.now()
+    entry.lastAccess = this.nextAccessStamp()
     return entry.result
   }
 
@@ -68,10 +70,11 @@ export class AnalysisCache {
   async set(results: AnalysisResult[]): Promise<void> {
     const now = Date.now()
     for (const result of results) {
+      const accessStamp = this.nextAccessStamp()
       this.store[result.noteId] = {
         result,
         createdAt: now,
-        lastAccess: now,
+        lastAccess: accessStamp,
       }
     }
 
@@ -82,7 +85,11 @@ export class AnalysisCache {
   /** Store a single result with debounced persist (for streaming). */
   setOne(result: AnalysisResult): void {
     const now = Date.now()
-    this.store[result.noteId] = { result, createdAt: now, lastAccess: now }
+    this.store[result.noteId] = {
+      result,
+      createdAt: now,
+      lastAccess: this.nextAccessStamp(),
+    }
     this.evictIfNeeded()
     if (!this.persistTimer) {
       this.persistTimer = setTimeout(() => {
@@ -139,5 +146,17 @@ export class AnalysisCache {
     } catch (e) {
       console.log(LOG_PREFIX, 'Failed to persist cache:', e)
     }
+  }
+
+  private nextAccessStamp(): number {
+    this.accessCounter += 1
+    return this.accessCounter
+  }
+
+  private reseedAccessCounter(): void {
+    const maxAccess = Object.values(this.store).reduce((max, entry) => (
+      entry.lastAccess > max ? entry.lastAccess : max
+    ), 0)
+    this.accessCounter = maxAccess
   }
 }
