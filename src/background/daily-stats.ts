@@ -4,7 +4,11 @@ const STORAGE_KEY = 'dailyStats'
 const MAX_DAYS = 30
 
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 /**
@@ -57,6 +61,16 @@ export class DailyStatsTracker {
   /** Get all daily stats (last 30 days) */
   getAll(): DailyStats[] {
     return [...this.days]
+  }
+
+  async clear(): Promise<void> {
+    this.days = []
+    this.today = null
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer)
+      this.persistTimer = null
+    }
+    await chrome.storage.local.set({ [STORAGE_KEY]: [] })
   }
 
   private debouncedPersist(): void {

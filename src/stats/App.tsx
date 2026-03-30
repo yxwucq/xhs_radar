@@ -4,16 +4,35 @@ import type { DailyStats } from '@/shared/types'
 export default function App() {
   const [days, setDays] = useState<DailyStats[]>([])
   const [loading, setLoading] = useState(true)
+  const [clearing, setClearing] = useState(false)
 
-  useEffect(() => {
+  function loadStats() {
     chrome.runtime.sendMessage({ type: 'GET_DAILY_STATS' }, (response) => {
       if (response?.days) {
         // Chronological order for charts
         setDays(response.days)
+      } else {
+        setDays([])
       }
       setLoading(false)
     })
+  }
+
+  useEffect(() => {
+    loadStats()
   }, [])
+
+  function handleClearHistory() {
+    if (clearing || !window.confirm('确认清除所有统计历史吗？此操作不可撤销。')) return
+
+    setClearing(true)
+    chrome.runtime.sendMessage({ type: 'CLEAR_DAILY_STATS' }, (response) => {
+      setClearing(false)
+      if (response?.ok) {
+        setDays([])
+      }
+    })
+  }
 
   const totalScanned = days.reduce((s, d) => s + d.scanned, 0)
   const totalMarked = days.reduce((s, d) => s + d.marked, 0)
@@ -27,16 +46,25 @@ export default function App() {
   return (
     <div className="max-w-2xl mx-auto py-12 px-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-2xl bg-amber-light flex items-center justify-center">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4845A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 20V10M12 20V4M6 20v-6"/>
-          </svg>
+      <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-light flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4845A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 20V10M12 20V4M6 20v-6"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-serif text-2xl font-bold text-bark tracking-tight">守护统计</h1>
+            <p className="text-xs text-muted mt-0.5">你的信息流健康养成记录</p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-bark tracking-tight">守护统计</h1>
-          <p className="text-xs text-muted mt-0.5">你的信息流健康养成记录</p>
-        </div>
+        <button
+          onClick={handleClearHistory}
+          disabled={clearing || days.length === 0}
+          className="px-3 py-2 rounded-xl border border-sand text-[11px] text-muted hover:text-bark hover:border-amber-warm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          {clearing ? '清除中...' : '清除历史'}
+        </button>
       </div>
 
       {/* Summary cards */}

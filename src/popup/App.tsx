@@ -1,14 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { FilterMode, SessionStats } from '@/shared/types'
+import type { FilterMode, SessionStats, DailyStats } from '@/shared/types'
 
 interface ExtendedStats extends SessionStats {
   cacheSize?: number
+}
+
+interface SummaryStats {
+  scanned: number
+  marked: number
 }
 
 export default function App() {
   const [enabled, setEnabled] = useState(true)
   const [filterMode, setFilterMode] = useState<FilterMode>('blur')
   const [stats, setStats] = useState<ExtendedStats | null>(null)
+  const [summary, setSummary] = useState<SummaryStats | null>(null)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
 
@@ -22,6 +28,13 @@ export default function App() {
     })
     chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
       if (response) setStats(response)
+    })
+    chrome.runtime.sendMessage({ type: 'GET_DAILY_STATS' }, (response) => {
+      const days: DailyStats[] = response?.days ?? []
+      setSummary({
+        scanned: days.reduce((sum, day) => sum + day.scanned, 0),
+        marked: days.reduce((sum, day) => sum + day.marked, 0),
+      })
     })
   }, [])
 
@@ -118,7 +131,7 @@ export default function App() {
       )}
 
       {/* Stats */}
-      {enabled && stats && (
+      {enabled && stats && summary && (
         <button
           onClick={() => setShowDetail(!showDetail)}
           className="stats-card w-full mb-4 rounded-2xl p-4 text-left"
@@ -127,9 +140,9 @@ export default function App() {
           <div className="flex items-center justify-between">
             <p className="text-[12px] text-bark/80 leading-relaxed" style={{ fontFamily: 'system-ui' }}>
               已为你检查{' '}
-              <span className="font-bold text-bark">{stats.scanned}</span>
+              <span className="font-bold text-bark">{summary.scanned}</span>
               {' '}篇笔记，发现{' '}
-              <span className="font-bold text-coral">{stats.marked}</span>
+              <span className="font-bold text-coral">{summary.marked}</span>
               {' '}篇低质内容
             </p>
             <svg

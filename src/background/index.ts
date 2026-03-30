@@ -71,6 +71,12 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
       sendResponse({ days: dailyStats.getAll() })
       return false
 
+    case 'CLEAR_DAILY_STATS':
+      dailyStats.clear()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }))
+      return true
+
     case 'TOGGLE_ENABLED':
       config.enabled = message.payload.enabled
       chrome.storage.local.set({ config })
@@ -161,6 +167,7 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
   if (!config.enabled) return
 
   stats.scanned += notes.length
+  let markedCount = 0
 
   // ── Layer 1: Keyword pre-filter (instant, push immediately) ──
   const keywordResults = analyzeByKeywords(notes, config.keywordRules, config.enabledTags, config.customRules)
@@ -179,6 +186,7 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
     console.log(LOG_PREFIX, `Keyword pre-filter: ${keywordHits.length} hit, ${passedNotes.length} to LLM`)
     await cache.set(keywordHits)
     stats.marked += keywordHits.length
+    markedCount += keywordHits.length
     if (tabId != null) pushToTab(tabId, keywordHits)
   }
 
@@ -192,13 +200,16 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
       noteId: n.noteId, score: 75, isLowQuality: false, tags: [] as AnalysisResult['tags'], reason: noKeyReason,
     }))
     if (tabId != null) pushToTab(tabId, skipped)
-    dailyStats.record(notes.length, keywordHits.length, 0)
+    dailyStats.record(notes.length, markedCount, 0)
     return
   }
 
   const cached = cache.getMany(passedNotes.map(n => n.noteId))
   const uncached = passedNotes.filter(n => !cached.has(n.noteId))
   stats.cacheHits += cached.size
+  const cachedMarked = [...cached.values()].filter(r => r.isLowQuality).length
+  stats.marked += cachedMarked
+  markedCount += cachedMarked
 
   // Push cache hits immediately
   if (cached.size > 0 && tabId != null) {
@@ -212,7 +223,10 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
     // Streaming callback: push each result to tab as it arrives
     const onPartialResult = tabId != null ? (result: AnalysisResult) => {
       cache.setOne(result)
-      if (result.isLowQuality) stats.marked++
+      if (result.isLowQuality) {
+        stats.marked++
+        markedCount++
+      }
       pushToTab(tabId, [result])
     } : undefined
 
@@ -225,13 +239,14 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
     // For non-streaming path or any results not yet pushed
     if (!onPartialResult) {
       await cache.set(allResults)
-      stats.marked += allResults.filter(r => r.isLowQuality).length
+      const llmMarked = allResults.filter(r => r.isLowQuality).length
+      stats.marked += llmMarked
+      markedCount += llmMarked
       if (tabId != null) pushToTab(tabId, allResults)
     }
   }
 
-  // Record daily stats (keyword hits already counted; LLM marked counted via streaming)
-  dailyStats.record(notes.length, keywordHits.length, uncached.length > 0 ? 1 : 0)
+  dailyStats.record(notes.length, markedCount, uncached.length > 0 ? 1 : 0)
 }
 
 chrome.runtime.onInstalled.addListener((details) => {

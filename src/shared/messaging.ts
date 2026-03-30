@@ -49,6 +49,10 @@ export interface GetDailyStatsMessage {
   type: 'GET_DAILY_STATS'
 }
 
+export interface ClearDailyStatsMessage {
+  type: 'CLEAR_DAILY_STATS'
+}
+
 export interface AnalyzeDetailMessage {
   type: 'ANALYZE_DETAIL'
   payload: {
@@ -77,6 +81,7 @@ export type Message =
   | ToggleEnabledMessage
   | SetFilterModeMessage
   | GetDailyStatsMessage
+  | ClearDailyStatsMessage
   | AnalyzeDetailMessage
   | DetailResultMessage
 
@@ -88,6 +93,7 @@ export type MessageResponse<T extends Message['type']> =
   T extends 'TOGGLE_ENABLED' ? { ok: boolean } :
   T extends 'SET_FILTER_MODE' ? { ok: boolean } :
   T extends 'CONFIG_CHANGED' ? { ok: boolean } :
+  T extends 'CLEAR_DAILY_STATS' ? { ok: boolean } :
   T extends 'ANALYZE_DETAIL' ? { received: boolean } :
   void
 
