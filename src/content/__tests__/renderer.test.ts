@@ -74,10 +74,19 @@ describe('applyBlurMark', () => {
 
   it('does nothing for normal-risk score > 50', () => {
     const card = makeCard()
-    applyBlurMark(card, makeResult({ score: 75 }))
+    applyBlurMark(card, makeResult({ score: 75, isLowQuality: false }))
 
     expect(card.classList.contains('xhs-radar-marked')).toBe(false)
     expect(card.querySelector('[data-xhs-radar-overlay]')).toBeNull()
+  })
+
+  it('still marks content that is low-quality under a stricter sensitivity threshold', () => {
+    const card = makeCard()
+    applyBlurMark(card, makeResult({ score: 75, isLowQuality: true }))
+
+    const inner = getInnerDiv(card)
+    expect(card.classList.contains('xhs-radar-marked')).toBe(true)
+    expect(inner.classList.contains('xhs-radar-blur-medium')).toBe(true)
   })
 
   it('adds overlay with badge showing tag labels', () => {
@@ -162,8 +171,14 @@ describe('applyVanishMark', () => {
 
   it('does nothing for normal-risk content', () => {
     const card = makeCard()
-    applyVanishMark(card, makeResult({ score: 75 }))
+    applyVanishMark(card, makeResult({ score: 75, isLowQuality: false }))
     expect(card.classList.contains('xhs-radar-hidden')).toBe(false)
+  })
+
+  it('still hides content that is low-quality under a stricter sensitivity threshold', () => {
+    const card = makeCard()
+    applyVanishMark(card, makeResult({ score: 75, isLowQuality: true }))
+    expect(card.classList.contains('xhs-radar-hidden')).toBe(true)
   })
 })
 

@@ -42,6 +42,17 @@ export function getRiskLevel(score: number): RiskLevel {
 }
 
 /**
+ * Risk level used for visual rendering.
+ * Low-quality results should always render a visible mark even when user
+ * sensitivity is stricter than the default score thresholds.
+ */
+function getRenderRiskLevel(result: AnalysisResult): Exclude<RiskLevel, 'normal'> | 'normal' {
+  const risk = getRiskLevel(result.score)
+  if (risk !== 'normal') return risk
+  return result.isLowQuality ? 'medium' : 'normal'
+}
+
+/**
  * Find the inner content wrapper of a card to apply blur to.
  * XHS card structure: section.note-item > div (inner content)
  * We blur this inner div so the overlay (sibling) stays crisp.
@@ -58,7 +69,7 @@ function getBlurTarget(card: HTMLElement): HTMLElement | null {
  * so the overlay (badge + button) remains crisp and readable.
  */
 export function applyBlurMark(card: HTMLElement, result: AnalysisResult): void {
-  const risk = getRiskLevel(result.score)
+  const risk = getRenderRiskLevel(result)
   if (risk === 'normal') return
 
   // Don't double-apply
@@ -130,7 +141,7 @@ export function removeMark(card: HTMLElement): void {
  * Apply vanish-mode: hide the card entirely.
  */
 export function applyVanishMark(card: HTMLElement, result: AnalysisResult): void {
-  const risk = getRiskLevel(result.score)
+  const risk = getRenderRiskLevel(result)
   if (risk === 'normal') return
   card.classList.add('xhs-radar-hidden')
 }

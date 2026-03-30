@@ -118,6 +118,7 @@ function handleResults(results: AnalysisResult[]): void {
     if (!card) continue
 
     resultMap.set(result.noteId, result)
+    const willMark = enabled && shouldMark(result)
 
     // Detect fallback results (API failed — reason contains "失败" or "超时" or "无效")
     const isFallback = !result.isLowQuality && result.reason &&
@@ -125,7 +126,7 @@ function handleResults(results: AnalysisResult[]): void {
 
     if (isFallback) {
       setCardStatus(card, 'error', result.reason)
-    } else if (result.isLowQuality) {
+    } else if (willMark) {
       console.log(LOG_PREFIX, '⚠ LOW QUALITY', {
         noteId: result.noteId,
         score: result.score,
@@ -148,10 +149,11 @@ function handleDetailResult(noteId: string, result: AnalysisResult): void {
   resultMap.set(noteId, result)
   const card = cardMap.get(noteId)
   if (card) {
+    const willMark = enabled && shouldMark(result)
     applyMark(card, result)
     const isFallback = !result.isLowQuality && result.reason && /失败|超时|无效|未设置|跳过/.test(result.reason)
-    const status = isFallback ? 'error' : result.isLowQuality ? 'fail' : 'pass'
-    const detail = result.isLowQuality ? `score=${result.score} ${result.reason ?? ''}` : `score=${result.score}`
+    const status = isFallback ? 'error' : willMark ? 'fail' : 'pass'
+    const detail = willMark ? `score=${result.score} ${result.reason ?? ''}` : `score=${result.score}`
     setCardStatus(card, status, detail, result.score)
   }
 }

@@ -16,7 +16,10 @@ export type DetailResultCallback = (noteId: string, result: AnalysisResult) => v
  */
 export class DetailObserver {
   private currentNoteId: string | null = null
-  private processedNotes = new Set<string>()
+  private currentRunId = 0
+  private retryTimer: ReturnType<typeof setInterval> | null = null
+  private timeoutTimer: ReturnType<typeof setTimeout> | null = null
+  private overlayObserver: MutationObserver | null = null
   private onResult: DetailResultCallback
 
   constructor(onResult: DetailResultCallback) {
@@ -30,13 +33,12 @@ export class DetailObserver {
 
   stop(): void {
     document.removeEventListener('click', this.onClick, { capture: true })
+    this.stopWatching()
   }
 
   handleResult(noteId: string, result: AnalysisResult): void {
-    if (noteId !== this.currentNoteId) return
-
     const container = this.findDetailContainer()
-    if (container) {
+    if (container?.getAttribute(DETAIL_PROCESSED_ATTR) === noteId) {
       removeBanner(container)
       container.prepend(createResultBanner(result))
     }
@@ -55,41 +57,69 @@ export class DetailObserver {
     if (!link) return
 
     const noteId = this.extractNoteIdFromHref(link.href)
-    if (!noteId || this.processedNotes.has(noteId)) return
+    if (!noteId) return
 
-    this.processedNotes.add(noteId)
+    this.beginWatching(noteId)
+  }
+
+  private beginWatching(noteId: string): void {
+    this.stopWatching()
     this.currentNoteId = noteId
+    const runId = ++this.currentRunId
 
-    // Wait for overlay to render, then try to extract content
-    setTimeout(() => this.tryExtract(noteId, 0), 800)
+    // Try immediately in case the overlay is already mounted.
+    if (this.tryExtract(noteId, runId)) return
+
+    // Keep checking briefly while the SPA hydrates or streams content in.
+    this.retryTimer = setInterval(() => {
+      if (this.tryExtract(noteId, runId)) {
+        this.stopWatching()
+      }
+    }, 300)
+
+    this.timeoutTimer = setTimeout(() => {
+      if (this.currentRunId === runId) {
+        console.debug(LOG_PREFIX, 'Detail overlay did not become ready in time:', noteId)
+        this.stopWatching()
+      }
+    }, 6000)
+
+    this.overlayObserver = new MutationObserver(() => {
+      if (this.tryExtract(noteId, runId)) {
+        this.stopWatching()
+      }
+    })
+    this.overlayObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    })
   }
 
   /**
    * Try to extract content from the detail overlay.
-   * At most 2 attempts (800ms and 2s after click) — then gives up or analyzes title-only.
+   * Returns true once analysis has been started for the active note.
    */
-  private tryExtract(noteId: string, attempt: number): void {
-    if (this.currentNoteId !== noteId) return
+  private tryExtract(noteId: string, runId: number): boolean {
+    if (this.currentNoteId !== noteId || this.currentRunId !== runId) return false
 
     const container = this.findDetailContainer()
     if (!container) {
-      if (attempt === 0) setTimeout(() => this.tryExtract(noteId, 1), 1200)
-      return
+      return false
     }
 
-    if (container.hasAttribute(DETAIL_PROCESSED_ATTR)) return
+    if (container.getAttribute(DETAIL_PROCESSED_ATTR) === noteId) return true
 
+    const titleEl = this.querySelectors(container, XHS_SELECTORS.detailTitle)
     const descEl = this.querySelectors(container, XHS_SELECTORS.detailDesc)
+    const title = titleEl?.textContent?.trim() ?? ''
     const content = descEl?.textContent?.trim() ?? ''
 
-    // If no content yet on first attempt, retry once more
-    if (!content && attempt === 0) {
-      setTimeout(() => this.tryExtract(noteId, 1), 1200)
-      return
-    }
+    if (!title && !content) return false
 
     container.setAttribute(DETAIL_PROCESSED_ATTR, noteId)
     this.analyze(container, noteId)
+    return true
   }
 
   private analyze(container: Element, noteId: string): void {
@@ -113,6 +143,21 @@ export class DetailObserver {
       }).catch(() => {})
     } catch {
       removeBanner(container)
+    }
+  }
+
+  private stopWatching(): void {
+    if (this.retryTimer) {
+      clearInterval(this.retryTimer)
+      this.retryTimer = null
+    }
+    if (this.timeoutTimer) {
+      clearTimeout(this.timeoutTimer)
+      this.timeoutTimer = null
+    }
+    if (this.overlayObserver) {
+      this.overlayObserver.disconnect()
+      this.overlayObserver = null
     }
   }
 
