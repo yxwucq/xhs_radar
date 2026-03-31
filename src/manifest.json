@@ -9,8 +9,7 @@
     "128": "assets/icons/icon128.png"
   },
   "permissions": [
-    "storage",
-    "activeTab"
+    "storage"
   ],
   "host_permissions": [
     "*://www.xiaohongshu.com/*"

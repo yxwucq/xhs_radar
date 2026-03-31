@@ -130,10 +130,18 @@ rsvg-convert -w 128 -h 128 assets/icons/icon.svg > assets/icons/icon128.png
 - **单一用途描述**：`识别并标记小红书信息流中的低质量内容`
 - **权限理由**：
   - `storage` → 在本地保存用户配置和分析结果缓存
-  - `activeTab` → 读取小红书页面中的笔记卡片信息
   - `host_permissions (xiaohongshu.com)` → 在小红书页面注入内容分析脚本
-  - `optional_host_permissions` → 允许用户连接自行配置的 AI API 端点
-- **数据使用声明**：勾选"我的扩展不收集或使用用户数据"
+  - `optional_host_permissions` → 仅用于用户手动配置并授权的 AI API 域名；扩展不会自动访问任意站点
+- **数据使用声明**：不要直接勾选“我的扩展不收集或使用用户数据”，需按实际情况披露：
+  - 扩展会读取小红书页面中的标题、作者名、点赞数
+  - 当用户主动打开详情时，扩展会读取详情页正文内容
+  - 上述内容可能发送到用户自行配置的 AI API 端点进行分析
+  - API Key、配置和缓存仅保存在本地浏览器
+
+建议将 `docs/store-listing.md` 中的以下内容直接粘贴到后台对应字段：
+- 审核备注 → `审核说明（可粘贴到审核备注）`
+- 权限理由 → `权限说明（可粘贴到权限理由）`
+- Privacy practices → `数据披露说明（可粘贴到 Privacy practices）`
 
 ### Step 5：设置分发范围
 

@@ -67,10 +67,48 @@ Note: Requires your own AI API key (OpenAI-compatible or Anthropic) for AI analy
 ## 隐私政策 URL
 
 ```
-https://<your-github-username>.github.io/hongshu-radar/privacy-policy.html
+https://yxwucq.github.io/xhs_radar/privacy-policy.html
 ```
 
-> 将 `docs/privacy-policy.html` 部署到 GitHub Pages 后填入实际 URL。
+> 请确认 GitHub Pages 已部署 `docs/privacy-policy.html`，且该地址可公开访问。
+
+## 审核说明（可粘贴到审核备注）
+
+```text
+This extension only works on xiaohongshu.com and analyzes visible note content to help users filter low-quality posts.
+
+The optional host permission is only used for user-configured AI API endpoints. The extension does not automatically access arbitrary websites. A host permission request is shown only after the user manually enters an API endpoint in settings and explicitly triggers authorization/testing for that endpoint.
+
+Data handling:
+- Feed analysis may send note titles, author names, and like counts to the user-configured AI API endpoint.
+- When the user actively opens a note detail view, detail analysis may additionally send the note body content shown in that overlay.
+- API keys, configuration, cache, and statistics are stored locally in chrome.storage.local.
+- No developer-operated server is used.
+```
+
+## 权限说明（可粘贴到权限理由）
+
+```text
+storage: Stores user settings, analysis cache, and local statistics in the browser.
+
+host_permissions (xiaohongshu.com): Runs the extension only on xiaohongshu.com pages so it can read visible note content and apply blur/hide markers in the feed.
+
+optional_host_permissions: Used only for AI API domains explicitly configured by the user. The extension requests permission for a specific API origin only after a user action in settings.
+```
+
+## 数据披露说明（可粘贴到 Privacy practices）
+
+```text
+The extension processes website content on xiaohongshu.com to analyze note quality.
+
+It may send the following data to a user-configured third-party AI service:
+- note titles
+- author names
+- like counts
+- note body content when the user actively opens a note detail view
+
+The extension stores API settings, cache, and statistics locally in the browser. It does not send data to any developer-operated server.
+```
 
 ## 截图要求
 
