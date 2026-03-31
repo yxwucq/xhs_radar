@@ -8,6 +8,7 @@ dist/
 .vscode/
 .idea/
 AGENTS.md
+CLAUDE.md
 *.swp
 *.swo
 
@@ -31,3 +32,11 @@ fixtures/*.html
 # Chrome Web Store submission
 *.zip
 screenshots/
+
+# Local docs / planning
+docs/chrome-web-store-guide.md
+local-model-discussion.md
+plan.md
+
+# Logs
+*.log
