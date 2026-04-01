@@ -1,7 +1,7 @@
 import './styles.css'
 import type { NoteData, AnalysisResult, FilterMode, LowQualityTag, CustomRule } from '@/shared/types'
 import type { Message } from '@/shared/messaging'
-import { DEFAULT_CONFIG } from '@/shared/constants'
+import { DEFAULT_CONFIG, mergeConfigWithDefaults } from '@/shared/constants'
 import { FeedObserver } from './observer'
 import { AnalysisQueue } from './queue'
 import { DetailObserver } from './detail-observer'
@@ -61,12 +61,13 @@ function die(): void {
 try {
   chrome.storage.local.get('config').then((stored) => {
     if (stored.config) {
-      enabled = stored.config.enabled ?? true
-      filterMode = stored.config.filterMode ?? DEFAULT_CONFIG.filterMode
-      enabledTags = stored.config.enabledTags ?? DEFAULT_CONFIG.enabledTags
-      prefetchLimit = stored.config.prefetchLimit ?? DEFAULT_CONFIG.prefetchLimit
-      keywordRules = stored.config.keywordRules ?? DEFAULT_CONFIG.keywordRules
-      customRules = stored.config.customRules ?? []
+      const config = mergeConfigWithDefaults(stored.config)
+      enabled = config.enabled
+      filterMode = config.filterMode
+      enabledTags = config.enabledTags
+      prefetchLimit = config.prefetchLimit
+      keywordRules = config.keywordRules
+      customRules = config.customRules
     }
   }).catch(() => { die() })
 } catch { die() }
@@ -217,17 +218,18 @@ try {
     if (area !== 'local' || !changes.config) return
     const newConfig = changes.config.newValue
     if (!newConfig) return
+    const config = mergeConfigWithDefaults(newConfig)
 
-    const modeChanged = newConfig.filterMode !== filterMode
-    const enabledChanged = newConfig.enabled !== enabled
-    const tagsChanged = JSON.stringify(newConfig.enabledTags) !== JSON.stringify(enabledTags)
+    const modeChanged = config.filterMode !== filterMode
+    const enabledChanged = config.enabled !== enabled
+    const tagsChanged = JSON.stringify(config.enabledTags) !== JSON.stringify(enabledTags)
 
-    enabled = newConfig.enabled ?? enabled
-    filterMode = newConfig.filterMode ?? filterMode
-    enabledTags = newConfig.enabledTags ?? enabledTags
-    prefetchLimit = newConfig.prefetchLimit ?? prefetchLimit
-    keywordRules = newConfig.keywordRules ?? keywordRules
-    customRules = newConfig.customRules ?? customRules
+    enabled = config.enabled
+    filterMode = config.filterMode
+    enabledTags = config.enabledTags
+    prefetchLimit = config.prefetchLimit
+    keywordRules = config.keywordRules
+    customRules = config.customRules
 
     if (enabledChanged || modeChanged || tagsChanged) {
       rerenderAll()

@@ -1,6 +1,6 @@
 import type { Message, NoteInput } from '@/shared/messaging'
 import type { UserConfig, SessionStats, AnalysisResult } from '@/shared/types'
-import { DEFAULT_CONFIG } from '@/shared/constants'
+import { DEFAULT_CONFIG, mergeConfigWithDefaults } from '@/shared/constants'
 import { LLMGateway } from './llm-gateway'
 import { AnalysisCache } from './cache'
 import { analyzeByKeywords } from './keyword-analyzer'
@@ -36,7 +36,7 @@ async function init(): Promise<void> {
   try {
     const stored = await chrome.storage.local.get('config')
     if (stored.config) {
-      config = { ...DEFAULT_CONFIG, ...stored.config }
+      config = mergeConfigWithDefaults(stored.config)
     }
     gateway.updateConfig(config)
     await cache.load()
@@ -52,7 +52,7 @@ init()
 // Listen for config changes from Options page
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.config) {
-    config = { ...DEFAULT_CONFIG, ...changes.config.newValue }
+    config = mergeConfigWithDefaults(changes.config.newValue)
     gateway.updateConfig(config)
     console.log(LOG_PREFIX, 'Config updated')
   }
@@ -157,7 +157,7 @@ async function handleDetailAnalyze(
 
   const results = await gateway.analyze(
     [noteInput], config.sensitivity,
-    { mode: 'detailed', customRules: config.customRules }
+    { mode: 'detailed', customRules: config.customRules, promptHint: config.promptHint }
   )
 
   const result = results[0]
@@ -245,7 +245,7 @@ async function handleAnalyze(notes: NoteInput[], tabId?: number): Promise<void> 
 
     const allResults = await gateway.analyze(
       uncached, config.sensitivity,
-      { mode: config.analysisMode, customRules: config.customRules },
+      { mode: config.analysisMode, customRules: config.customRules, promptHint: config.promptHint },
       onPartialResult
     )
 

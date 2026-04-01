@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
-import type { UserConfig, LowQualityTag, AnalysisMode, CustomRule } from '@/shared/types'
-import { DEFAULT_CONFIG, DEFAULT_API_URLS, SUGGESTED_MODELS, TAG_LABELS, TAG_DESCRIPTIONS } from '@/shared/constants'
+import type { UserConfig, LowQualityTag, CustomRule, ScenarioPreset } from '@/shared/types'
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_API_URLS,
+  SUGGESTED_MODELS,
+  TAG_LABELS,
+  TAG_DESCRIPTIONS,
+  applyScenarioToConfig,
+  cloneScenario,
+  mergeConfigWithDefaults,
+} from '@/shared/constants'
 
 const ALL_TAGS: LowQualityTag[] = [
   'anxiety', 'clickbait', 'misinformation', 'hidden_ad', 'emotional_manipulation',
@@ -25,9 +34,7 @@ export default function App() {
 
   useEffect(() => {
     chrome.storage.local.get('config').then((stored) => {
-      if (stored.config) {
-        setConfig({ ...DEFAULT_CONFIG, ...stored.config })
-      }
+      setConfig(mergeConfigWithDefaults(stored.config))
       setLoading(false)
       // Delay to avoid auto-save on initial load
       setTimeout(() => setInitialized(true), 100)
@@ -41,6 +48,139 @@ export default function App() {
     chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: config }).catch(() => {})
   }, [config, initialized])
 
+  function syncScenarioIfEditable(next: UserConfig): UserConfig {
+    const active = next.scenarios.find(s => s.id === next.activeScenarioId)
+    if (!active || active.builtin) return next
+
+    return {
+      ...next,
+      scenarios: next.scenarios.map(s => s.id === active.id ? {
+        ...s,
+        sensitivity: next.sensitivity,
+        enabledTags: [...next.enabledTags],
+        analysisMode: next.analysisMode,
+        filterMode: next.filterMode,
+        promptHint: next.promptHint,
+      } : s),
+    }
+  }
+
+  function applyScenario(scenarioId: string) {
+    setConfig(prev => {
+      const scenario = prev.scenarios.find(s => s.id === scenarioId)
+      if (!scenario) return prev
+      return applyScenarioToConfig(prev, scenario)
+    })
+  }
+
+  function duplicateActiveScenario() {
+    setConfig(prev => {
+      const source = prev.scenarios.find(s => s.id === prev.activeScenarioId) ?? prev.scenarios[0]
+      const copy: ScenarioPreset = {
+        ...cloneScenario(source),
+        id: `custom-${Date.now().toString(36)}`,
+        name: `${source.name}副本`,
+        description: '基于当前配置复制，可继续自定义调整。',
+        sensitivity: prev.sensitivity,
+        enabledTags: [...prev.enabledTags],
+        analysisMode: prev.analysisMode,
+        filterMode: prev.filterMode,
+        promptHint: prev.promptHint,
+        builtin: false,
+      }
+
+      const next = {
+        ...prev,
+        scenarios: [...prev.scenarios, copy],
+      }
+      return applyScenarioToConfig(next, copy)
+    })
+  }
+
+  function addNewScenario() {
+    setConfig(prev => {
+      const newScenario: ScenarioPreset = {
+        id: `custom-${Date.now().toString(36)}`,
+        name: '新情景',
+        description: '',
+        sensitivity: 50,
+        enabledTags: [...prev.enabledTags],
+        analysisMode: 'detailed',
+        filterMode: 'blur',
+        promptHint: '',
+        builtin: false,
+      }
+
+      const next = {
+        ...prev,
+        scenarios: [...prev.scenarios, newScenario],
+      }
+      return applyScenarioToConfig(next, newScenario)
+    })
+  }
+
+  function updateScenarioField<K extends keyof ScenarioPreset>(id: string, key: K, value: ScenarioPreset[K]) {
+    setConfig(prev => {
+      const next = {
+        ...prev,
+        scenarios: prev.scenarios.map(s => s.id === id ? { ...s, [key]: value } : s),
+      }
+      // If editing the active scenario, sync to global config
+      if (id === prev.activeScenarioId) {
+        const updated = next.scenarios.find(s => s.id === id)!
+        return applyScenarioToConfig(next, updated)
+      }
+      return next
+    })
+  }
+
+  function toggleScenarioTag(id: string, tag: LowQualityTag) {
+    setConfig(prev => {
+      const scenario = prev.scenarios.find(s => s.id === id)
+      if (!scenario) return prev
+      const tags = scenario.enabledTags.includes(tag)
+        ? scenario.enabledTags.filter(t => t !== tag)
+        : [...scenario.enabledTags, tag]
+      const next = {
+        ...prev,
+        scenarios: prev.scenarios.map(s => s.id === id ? { ...s, enabledTags: tags } : s),
+      }
+      if (id === prev.activeScenarioId) {
+        return { ...next, enabledTags: tags }
+      }
+      return next
+    })
+  }
+
+  function updateScenarioMeta(id: string, patch: Partial<Pick<ScenarioPreset, 'name' | 'description' | 'promptHint'>>) {
+    setConfig(prev => {
+      const next = {
+        ...prev,
+        scenarios: prev.scenarios.map(s => s.id === id ? { ...s, ...patch } : s),
+      }
+      if (id !== prev.activeScenarioId) return next
+      return {
+        ...next,
+        promptHint: patch.promptHint ?? next.promptHint,
+      }
+    })
+  }
+
+  function removeScenario(id: string) {
+    setConfig(prev => {
+      const target = prev.scenarios.find(s => s.id === id)
+      if (!target || target.builtin) return prev
+
+      const scenarios = prev.scenarios.filter(s => s.id !== id)
+      const quickScenarioIds = (prev.quickScenarioIds ?? []).filter(qid => qid !== id)
+      const fallback = scenarios.find(s => s.id === 'focus') ?? scenarios[0]
+      if (prev.activeScenarioId !== id || !fallback) {
+        return { ...prev, scenarios, quickScenarioIds }
+      }
+      return applyScenarioToConfig({ ...prev, scenarios, quickScenarioIds }, fallback)
+    })
+  }
+
   function updateField<K extends keyof UserConfig>(key: K, value: UserConfig[K]) {
     setConfig(prev => {
       const next = { ...prev, [key]: value }
@@ -49,7 +189,7 @@ export default function App() {
         next.model = SUGGESTED_MODELS[provider][0]
         next.apiBaseUrl = ''
       }
-      return next
+      return syncScenarioIfEditable(next)
     })
   }
 
@@ -58,7 +198,7 @@ export default function App() {
       const tags = prev.enabledTags.includes(tag)
         ? prev.enabledTags.filter(t => t !== tag)
         : [...prev.enabledTags, tag]
-      return { ...prev, enabledTags: tags }
+      return syncScenarioIfEditable({ ...prev, enabledTags: tags })
     })
   }
 
@@ -70,25 +210,25 @@ export default function App() {
       keywords: [],
       enabled: true,
     }
-    setConfig(prev => ({ ...prev, customRules: [...(prev.customRules ?? []), rule] }))
+    setConfig(prev => syncScenarioIfEditable({ ...prev, customRules: [...(prev.customRules ?? []), rule] }))
   }
 
   function updateCustomRule(id: string, patch: Partial<CustomRule>) {
-    setConfig(prev => ({
+    setConfig(prev => syncScenarioIfEditable({
       ...prev,
       customRules: (prev.customRules ?? []).map(r => r.id === id ? { ...r, ...patch } : r),
     }))
   }
 
   function removeCustomRule(id: string) {
-    setConfig(prev => ({
+    setConfig(prev => syncScenarioIfEditable({
       ...prev,
       customRules: (prev.customRules ?? []).filter(r => r.id !== id),
     }))
   }
 
   function updateKeywordsForTag(tag: LowQualityTag, keywords: string[]) {
-    setConfig(prev => ({
+    setConfig(prev => syncScenarioIfEditable({
       ...prev,
       keywordRules: { ...prev.keywordRules, [tag]: keywords },
     }))
@@ -206,33 +346,251 @@ export default function App() {
       </div>
 
       <div className="space-y-6">
-        {/* ── Analysis Mode ── */}
-        <Section title="分析模式">
-          <div className="flex gap-3">
-            {([
-              ['detailed', '详细模式', '标签 + 理由'],
-              ['lite', '精简模式', '仅 LOW / OK'],
-            ] as const).map(([mode, label, desc]) => (
-              <button
-                key={mode}
-                onClick={() => updateField('analysisMode', mode as AnalysisMode)}
-                className={`flex-1 p-3.5 rounded-xl border-[1.5px] text-left transition-all duration-200 ${
-                  config.analysisMode === mode
-                    ? 'border-amber-warm bg-amber-light/50 shadow-card'
-                    : 'border-sand bg-white hover:border-amber-warm/40'
-                }`}
-              >
-                <div className={`text-sm font-medium ${config.analysisMode === mode ? 'text-bark' : 'text-muted'}`}>
-                  {label}
+        {/* ── Scenarios ── */}
+        <Section title="情景模式" hint="切换不同使用状态下的过滤策略，自定义情景可自由编辑所有参数">
+          <div className="space-y-3">
+            {config.scenarios.map((scenario) => {
+              const isActive = config.activeScenarioId === scenario.id
+              const isCustom = !scenario.builtin
+              return (
+                <div
+                  key={scenario.id}
+                  className={`rounded-xl border-[1.5px] p-3.5 transition-all duration-200 cursor-pointer ${
+                    isActive ? 'border-amber-warm bg-amber-light/40 shadow-card' : 'border-sand bg-white hover:border-amber-warm/40'
+                  }`}
+                  onClick={() => !isActive && applyScenario(scenario.id)}
+                >
+                  {/* Header row */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      {isCustom ? (
+                        <input
+                          type="text"
+                          value={scenario.name}
+                          onChange={e => updateScenarioMeta(scenario.id, { name: e.target.value })}
+                          onClick={e => e.stopPropagation()}
+                          className="w-full text-sm font-medium text-bark bg-transparent border-none outline-none p-0"
+                        />
+                      ) : (
+                        <div className="text-sm font-medium text-bark">{scenario.name}</div>
+                      )}
+                      <p className="text-[10px] text-muted mt-1">
+                        灵敏度 {scenario.sensitivity} · {scenario.enabledTags.length} 类过滤 · {scenario.filterMode === 'blur' ? '模糊' : '隐藏'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isActive && (
+                        <span className="px-2 py-1 rounded-lg text-[10px] font-medium bg-amber-warm text-white">当前</span>
+                      )}
+                      {isCustom && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeScenario(scenario.id) }}
+                          className="text-[10px] text-muted hover:text-coral transition-colors px-1"
+                        >
+                          删除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded panel — shown when active */}
+                  {isActive && (
+                    <div className="mt-3 pt-3 border-t border-sand/60 space-y-3" onClick={e => e.stopPropagation()}>
+                      {/* Description */}
+                      {isCustom ? (
+                        <div>
+                          <span className="text-[11px] text-muted font-medium">描述</span>
+                          <input
+                            type="text"
+                            value={scenario.description}
+                            onChange={e => updateScenarioMeta(scenario.id, { description: e.target.value })}
+                            className="input-field text-xs mt-1"
+                            placeholder="这个情景的用途"
+                          />
+                        </div>
+                      ) : scenario.description ? (
+                        <p className="text-[11px] text-muted leading-relaxed">{scenario.description}</p>
+                      ) : null}
+
+                      {/* Sensitivity */}
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-muted font-medium">灵敏度</span>
+                          <span className="text-[11px] text-bark font-medium">{scenario.sensitivity}</span>
+                        </div>
+                        {isCustom ? (
+                          <>
+                            <input
+                              type="range" min="10" max="95" step="5"
+                              value={scenario.sensitivity}
+                              onChange={e => updateScenarioField(scenario.id, 'sensitivity', Number(e.target.value))}
+                              className="w-full mt-1"
+                            />
+                            <div className="flex justify-between text-[9px] text-muted">
+                              <span>宽松</span><span>严格</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full bg-sand/50 rounded-full h-1.5 mt-2">
+                            <div className="bg-amber-warm/60 h-1.5 rounded-full" style={{ width: `${scenario.sensitivity}%` }} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Filter mode */}
+                      <div>
+                        <span className="text-[11px] text-muted font-medium">过滤模式</span>
+                        <div className="flex gap-2 mt-1.5">
+                          {(['blur', 'vanish'] as const).map(mode => (
+                            <button
+                              key={mode}
+                              onClick={() => isCustom && updateScenarioField(scenario.id, 'filterMode', mode)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] transition-all ${
+                                scenario.filterMode === mode
+                                  ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                                  : 'bg-sand/50 text-muted border border-transparent'
+                              } ${isCustom ? 'cursor-pointer hover:border-sand' : 'cursor-default'}`}
+                            >
+                              {mode === 'blur' ? '模糊' : '隐藏'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Analysis mode */}
+                      <div>
+                        <span className="text-[11px] text-muted font-medium">分析模式</span>
+                        <div className="flex gap-2 mt-1.5">
+                          {(['detailed', 'lite'] as const).map(mode => (
+                            <button
+                              key={mode}
+                              onClick={() => isCustom && updateScenarioField(scenario.id, 'analysisMode', mode)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] transition-all ${
+                                scenario.analysisMode === mode
+                                  ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                                  : 'bg-sand/50 text-muted border border-transparent'
+                              } ${isCustom ? 'cursor-pointer hover:border-sand' : 'cursor-default'}`}
+                            >
+                              {mode === 'detailed' ? '详细' : '精简'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tag toggles */}
+                      <div>
+                        <span className="text-[11px] text-muted font-medium">过滤类型</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {ALL_TAGS.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => isCustom && toggleScenarioTag(scenario.id, tag)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] transition-all ${
+                                scenario.enabledTags.includes(tag)
+                                  ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                                  : 'bg-sand/50 text-muted border border-transparent'
+                              } ${isCustom ? 'cursor-pointer hover:border-sand' : 'cursor-default'}`}
+                            >
+                              {TAG_ICONS[tag]} {TAG_LABELS[tag]}
+                            </button>
+                          ))}
+                          {(config.customRules ?? []).map(rule => (
+                            <button
+                              key={rule.id}
+                              onClick={() => updateCustomRule(rule.id, { enabled: !rule.enabled })}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
+                                rule.enabled
+                                  ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                                  : 'bg-sand/50 text-muted border border-transparent hover:border-sand'
+                              }`}
+                            >
+                              {rule.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Prompt hint */}
+                      <div>
+                        <span className="text-[11px] text-muted font-medium">AI 提示词</span>
+                        <textarea
+                          value={scenario.promptHint}
+                          onChange={e => isCustom && updateScenarioMeta(scenario.id, { promptHint: e.target.value })}
+                          rows={2}
+                          className={`input-field text-xs mt-1 ${!isCustom ? 'opacity-70' : ''}`}
+                          placeholder="告诉模型这个情景下更应该少看什么、保留什么"
+                          readOnly={!isCustom}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="text-[11px] text-muted mt-0.5">{desc}</div>
+              )
+            })}
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={addNewScenario}
+                className="flex-1 py-2.5 rounded-xl border-[1.5px] border-dashed border-sand text-xs text-muted hover:border-amber-warm hover:text-amber-warm transition-all duration-200 flex items-center justify-center gap-1.5"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                新建情景
               </button>
-            ))}
+              <button
+                onClick={duplicateActiveScenario}
+                className="flex-1 py-2.5 rounded-xl border-[1.5px] border-dashed border-sand text-xs text-muted hover:border-amber-warm hover:text-amber-warm transition-all duration-200 flex items-center justify-center gap-1.5"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                复制当前
+              </button>
+            </div>
+
+            {/* Quick-switch config */}
+            <div className="mt-4 pt-4 border-t border-sand/60">
+              <span className="text-[11px] text-muted font-medium">弹窗快捷切换（最多 4 个）</span>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {config.scenarios.map(s => {
+                  const isQuick = (config.quickScenarioIds ?? []).includes(s.id)
+                  const count = (config.quickScenarioIds ?? []).length
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setConfig(prev => {
+                          const ids = prev.quickScenarioIds ?? []
+                          const next = ids.includes(s.id)
+                            ? ids.filter(id => id !== s.id)
+                            : ids.length < 4 ? [...ids, s.id] : ids
+                          return { ...prev, quickScenarioIds: next }
+                        })
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] transition-all ${
+                        isQuick
+                          ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                          : count >= 4
+                            ? 'bg-sand/30 text-muted/40 border border-transparent cursor-not-allowed'
+                            : 'bg-sand/50 text-muted border border-transparent hover:border-sand'
+                      }`}
+                      disabled={!isQuick && count >= 4}
+                    >
+                      {s.name}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-muted mt-1.5">选中的情景会出现在弹窗面板的快捷切换栏</p>
+            </div>
           </div>
         </Section>
 
-        {/* ── Filter Rules ── */}
-        <Section title="过滤规则" hint="点击展开查看/编辑每个类型的关键词">
+        {/* ── Keyword Rules (global, shared across scenarios) ── */}
+        <Section title="关键词规则" hint="全局关键词匹配，所有情景共享，命中即标记无需 API">
           <div className="space-y-2.5">
             {ALL_TAGS.map(tag => {
               const isEnabled = config.enabledTags.includes(tag)

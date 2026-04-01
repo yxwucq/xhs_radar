@@ -37,6 +37,19 @@ export type FilterMode = 'blur' | 'vanish'
 /** LLM analysis mode — detailed (full JSON) or lite (LOW/OK) */
 export type AnalysisMode = 'detailed' | 'lite'
 
+export interface ScenarioPreset {
+  id: string
+  name: string
+  description: string
+  sensitivity: number
+  enabledTags: LowQualityTag[]
+  analysisMode: AnalysisMode
+  filterMode: FilterMode
+  /** Natural language hint injected into the LLM system prompt for this scenario */
+  promptHint: string
+  builtin?: boolean
+}
+
 /** User configuration stored in chrome.storage.local */
 export interface UserConfig {
   enabled: boolean
@@ -53,6 +66,12 @@ export interface UserConfig {
   keywordRules: Record<LowQualityTag, string[]>
   /** User-created custom filter rules */
   customRules: CustomRule[]
+  /** Extra prompt guidance for the currently active scenario. */
+  promptHint: string
+  activeScenarioId: string
+  scenarios: ScenarioPreset[]
+  /** Scenario IDs to show in Popup quick-switch bar (max 4) */
+  quickScenarioIds: string[]
   /** Max notes to pre-analyze from feed API (0 = unlimited) */
   prefetchLimit: number
 }

@@ -17,12 +17,12 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   private buildRequest(notes: NoteInput[], sensitivity: number, options: AnalyzeOptions, stream: boolean) {
-    const { mode = 'detailed', customRules = [] } = options
+    const { mode = 'detailed', customRules = [], promptHint = '' } = options
     const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
     return {
       model: this.model,
       messages: [
-        { role: 'system', content: buildSystemPrompt(sensitivity, customRules) },
+        { role: 'system', content: buildSystemPrompt(sensitivity, customRules, promptHint) },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.1,

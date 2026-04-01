@@ -5,6 +5,7 @@ import type { NoteInput } from '@/shared/messaging'
 export interface AnalyzeOptions {
   mode?: 'detailed' | 'lite'
   customRules?: CustomRule[]
+  promptHint?: string
 }
 
 /** Callback for streaming — called once per parsed result */

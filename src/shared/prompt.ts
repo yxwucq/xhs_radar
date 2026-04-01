@@ -5,7 +5,11 @@ import type { CustomRule } from './types'
  * Shared system prompt — used by both detailed and lite modes.
  * Includes built-in categories + user's custom rule descriptions.
  */
-export function buildSystemPrompt(sensitivity: number, customRules: CustomRule[] = []): string {
+export function buildSystemPrompt(
+  sensitivity: number,
+  customRules: CustomRule[] = [],
+  promptHint: string = ''
+): string {
   const threshold = sensitivity <= 30 ? '非常明显' : sensitivity <= 70 ? '较为明显' : '轻微疑似'
 
   let prompt = `你是小红书内容质量判断助手。根据标题（和正文，如有提供）判断笔记是否低质。
@@ -28,6 +32,10 @@ export function buildSystemPrompt(sensitivity: number, customRules: CustomRule[]
   if (activeCustom.length > 0) {
     const customLines = activeCustom.map(r => `${r.name}: ${r.description}`).join('\n')
     prompt += `\n用户自定义过滤规则（同样判LOW）：\n${customLines}`
+  }
+
+  if (promptHint.trim()) {
+    prompt += `\n当前情景补充原则：${promptHint.trim()}`
   }
 
   prompt += `\n\n判定标准：${threshold}的低质特征即判LOW。`

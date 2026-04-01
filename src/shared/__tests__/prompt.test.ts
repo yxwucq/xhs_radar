@@ -37,6 +37,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('不算标题党')
     expect(prompt).toContain('放宽标准')
   })
+
+  it('includes scenario prompt hint when provided', () => {
+    const prompt = buildSystemPrompt(50, [], '优先过滤分散注意力的内容')
+    expect(prompt).toContain('当前情景补充原则')
+    expect(prompt).toContain('优先过滤分散注意力的内容')
+  })
 })
 
 describe('buildBatchPrompt (detailed)', () => {

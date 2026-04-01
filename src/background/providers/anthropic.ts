@@ -17,12 +17,12 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   private buildRequest(notes: NoteInput[], sensitivity: number, options: AnalyzeOptions, stream: boolean) {
-    const { mode = 'detailed', customRules = [] } = options
+    const { mode = 'detailed', customRules = [], promptHint = '' } = options
     const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
     return {
       model: this.model,
       max_tokens: 1024,
-      system: buildSystemPrompt(sensitivity, customRules),
+      system: buildSystemPrompt(sensitivity, customRules, promptHint),
       messages: [{ role: 'user', content: userPrompt }],
       ...(stream ? { stream: true } : {}),
     }

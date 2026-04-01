@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { FilterMode, SessionStats, DailyStats } from '@/shared/types'
+import type { FilterMode, SessionStats, DailyStats, ScenarioPreset, UserConfig } from '@/shared/types'
+import { DEFAULT_CONFIG, applyScenarioToConfig, mergeConfigWithDefaults } from '@/shared/constants'
 
 interface ExtendedStats extends SessionStats {
   cacheSize?: number
@@ -12,19 +13,20 @@ interface SummaryStats {
 
 export default function App() {
   const [enabled, setEnabled] = useState(true)
-  const [filterMode, setFilterMode] = useState<FilterMode>('blur')
+  const [, setFilterMode] = useState<FilterMode>('blur')
   const [stats, setStats] = useState<ExtendedStats | null>(null)
   const [summary, setSummary] = useState<SummaryStats | null>(null)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [config, setConfig] = useState<UserConfig>(DEFAULT_CONFIG)
 
   const loadState = useCallback(() => {
     chrome.storage.local.get('config').then((stored) => {
-      if (stored.config) {
-        setEnabled(stored.config.enabled ?? true)
-        setFilterMode(stored.config.filterMode ?? 'blur')
-        setHasApiKey(!!stored.config.apiKey)
-      }
+      const next = mergeConfigWithDefaults(stored.config)
+      setConfig(next)
+      setEnabled(next.enabled)
+      setFilterMode(next.filterMode)
+      setHasApiKey(!!next.apiKey)
     })
     chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
       if (response) setStats(response)
@@ -50,16 +52,32 @@ export default function App() {
     })
   }
 
-  function handleModeSwitch(mode: FilterMode) {
-    setFilterMode(mode)
-    chrome.runtime.sendMessage({ type: 'SET_FILTER_MODE', payload: { mode } }, () => {
-      if (chrome.runtime.lastError) console.warn('Mode switch failed:', chrome.runtime.lastError.message)
-    })
-  }
-
   function openSettings() {
     chrome.runtime.openOptionsPage()
   }
+
+  function handleScenarioSwitch(scenario: ScenarioPreset) {
+    const next = applyScenarioToConfig(config, scenario)
+    setConfig(next)
+    setFilterMode(next.filterMode)
+    chrome.storage.local.set({ config: next })
+    chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: next }, () => {
+      if (chrome.runtime.lastError) console.warn('Scenario switch failed:', chrome.runtime.lastError.message)
+    })
+  }
+
+  const visibleScenarios = (() => {
+    const ids = config.quickScenarioIds ?? []
+    const quick = ids
+      .map(id => config.scenarios.find(s => s.id === id))
+      .filter((s): s is ScenarioPreset => !!s)
+    // Ensure active scenario is always visible
+    const active = config.scenarios.find(s => s.id === config.activeScenarioId)
+    if (active && !quick.some(s => s.id === active.id)) {
+      return [...quick.slice(0, 3), active]
+    }
+    return quick.slice(0, 4)
+  })()
 
   return (
     <div className="px-5 pt-5 pb-4">
@@ -117,16 +135,26 @@ export default function App() {
 
       {/* Mode Switch */}
       {enabled && (
-        <div className="pill-group flex mb-4">
-          {(['blur', 'vanish'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => handleModeSwitch(mode)}
-              className={`pill-btn flex-1 ${filterMode === mode ? 'active' : ''}`}
-            >
-              {mode === 'blur' ? '模糊模式' : '隐藏模式'}
-            </button>
-          ))}
+        <div className="mb-4">
+          <div className="pill-group flex overflow-x-auto">
+            {visibleScenarios.map((scenario) => (
+              <button
+                key={scenario.id}
+                onClick={() => handleScenarioSwitch(scenario)}
+                className={`pill-btn flex-1 min-w-[64px] ${config.activeScenarioId === scenario.id ? 'active' : ''}`}
+              >
+                {scenario.name}
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const active = config.scenarios.find(s => s.id === config.activeScenarioId)
+            return active?.description ? (
+              <p className="text-[10px] text-muted mt-1.5 px-1 leading-relaxed" style={{ fontFamily: 'system-ui' }}>
+                {active.description}
+              </p>
+            ) : null
+          })()}
         </div>
       )}
 
