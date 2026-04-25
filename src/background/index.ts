@@ -1,5 +1,5 @@
 import type { Message, NoteInput } from '@/shared/messaging'
-import type { UserConfig, SessionStats, AnalysisResult } from '@/shared/types'
+import type { LastLLMError, UserConfig, SessionStats, AnalysisResult } from '@/shared/types'
 import { DEFAULT_CONFIG, mergeConfigWithDefaults } from '@/shared/constants'
 import { LLMGateway } from './llm-gateway'
 import { AnalysisCache } from './cache'
@@ -11,6 +11,19 @@ const LOG_PREFIX = '[XHS Radar BG]'
 const gateway = new LLMGateway()
 const cache = new AnalysisCache()
 const dailyStats = new DailyStatsTracker()
+
+function reflectErrorOnBadge(err: LastLLMError | null): void {
+  if (err?.type === 'auth') {
+    chrome.action.setBadgeText({ text: '!' }).catch(() => {})
+    chrome.action.setBadgeBackgroundColor({ color: '#D4845A' }).catch(() => {})
+    chrome.action.setTitle({ title: '红薯雷达 — API Key 无效，点击查看' }).catch(() => {})
+  } else {
+    chrome.action.setBadgeText({ text: '' }).catch(() => {})
+    chrome.action.setTitle({ title: '红薯雷达' }).catch(() => {})
+  }
+}
+
+gateway.setErrorListener(reflectErrorOnBadge)
 
 let config: UserConfig = { ...DEFAULT_CONFIG }
 let stats: SessionStats = {
@@ -74,7 +87,7 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     }
 
     case 'GET_STATUS':
-      sendResponse({ ...stats, cacheSize: cache.size })
+      sendResponse({ ...stats, cacheSize: cache.size, lastError: gateway.getLastError() })
       return false
 
     case 'GET_DAILY_STATS':

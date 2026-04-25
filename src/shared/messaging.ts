@@ -1,4 +1,4 @@
-import type { AnalysisResult, FilterMode, SessionStats, UserConfig } from './types'
+import type { AnalysisResult, FilterMode, LastLLMError, SessionStats, UserConfig } from './types'
 
 /** Serializable note input sent from content script to background */
 export interface NoteInput {
@@ -89,7 +89,7 @@ export type Message =
 
 export type MessageResponse<T extends Message['type']> =
   T extends 'ANALYZE_NOTES' ? { results: AnalysisResult[] } :
-  T extends 'GET_STATUS' ? SessionStats :
+  T extends 'GET_STATUS' ? SessionStats & { cacheSize?: number; lastError?: LastLLMError | null } :
   T extends 'TOGGLE_ENABLED' ? { ok: boolean } :
   T extends 'SET_FILTER_MODE' ? { ok: boolean } :
   T extends 'CONFIG_CHANGED' ? { ok: boolean } :

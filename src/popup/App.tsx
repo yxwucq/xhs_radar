@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { FilterMode, SessionStats, DailyStats, ScenarioPreset, UserConfig } from '@/shared/types'
+import type { FilterMode, LastLLMError, SessionStats, DailyStats, ScenarioPreset, UserConfig } from '@/shared/types'
 import { DEFAULT_CONFIG, applyScenarioToConfig, mergeConfigWithDefaults } from '@/shared/constants'
 
 interface ExtendedStats extends SessionStats {
   cacheSize?: number
+  lastError?: LastLLMError | null
 }
 
 interface SummaryStats {
@@ -118,8 +119,8 @@ export default function App() {
         </button>
       </div>
 
-      {/* API Key Warning */}
-      {!hasApiKey && (
+      {/* API Key / Error Warning */}
+      {!hasApiKey ? (
         <div className="mb-4 p-3 bg-amber-light rounded-2xl border border-amber-warm/20">
           <p className="text-[11px] text-bark/70" style={{ fontFamily: 'system-ui' }}>
             请先设置 API Key
@@ -131,7 +132,19 @@ export default function App() {
             </button>
           </p>
         </div>
-      )}
+      ) : stats?.lastError?.type === 'auth' ? (
+        <div className="mb-4 p-3 bg-coral/10 rounded-2xl border border-coral/30">
+          <p className="text-[11px] text-bark/80" style={{ fontFamily: 'system-ui' }}>
+            API Key 无效或已过期
+            <button
+              onClick={openSettings}
+              className="ml-1 text-coral font-semibold underline underline-offset-2 decoration-coral/40 hover:decoration-coral"
+            >
+              检查设置
+            </button>
+          </p>
+        </div>
+      ) : null}
 
       {/* Mode Switch */}
       {enabled && (

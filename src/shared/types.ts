@@ -86,6 +86,14 @@ export interface CustomRule {
   enabled: boolean
 }
 
+/** Last LLM error, surfaced to popup for user notification */
+export interface LastLLMError {
+  type: 'auth' | 'timeout' | 'network' | 'unknown'
+  message: string
+  /** Unix ms */
+  timestamp: number
+}
+
 /** Runtime stats stored in chrome.storage.session */
 export interface SessionStats {
   scanned: number
