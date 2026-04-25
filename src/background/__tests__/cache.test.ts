@@ -167,4 +167,33 @@ describe('AnalysisCache', () => {
     await cache.load()
     expect(cache.get('preloaded')?.score).toBe(30)
   })
+
+  it('serializes overlapping writes — last call wins, no concurrent sets', async () => {
+    // Replace set with a delayed implementation so writes overlap in time.
+    let inFlight = 0
+    let maxInFlight = 0
+    const setSpy = vi.fn(async (data: Record<string, unknown>) => {
+      inFlight++
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise(r => setTimeout(r, 10))
+      Object.assign(mockStorage, data)
+      inFlight--
+    })
+    ;(chrome.storage.local.set as unknown as typeof setSpy) = setSpy
+
+    const cache = new AnalysisCache()
+    await cache.load()
+
+    // Fire two writes back-to-back. The second should be queued behind the first.
+    const p1 = cache.set([makeResult('first')])
+    const p2 = cache.set([makeResult('second')])
+    await Promise.all([p1, p2])
+
+    // No two chrome.storage.local.set calls were ever in flight at the same time.
+    expect(maxInFlight).toBe(1)
+    // Latest state landed in storage (both entries persisted).
+    const stored = mockStorage['analysisCache'] as Record<string, unknown>
+    expect(stored).toHaveProperty('first')
+    expect(stored).toHaveProperty('second')
+  })
 })

@@ -24,6 +24,10 @@ export class AnalysisCache {
   private loaded = false
   private persistTimer: ReturnType<typeof setTimeout> | null = null
   private accessCounter = 0
+  /** In-flight chrome.storage.local.set, or null if idle */
+  private writePromise: Promise<void> | null = null
+  /** Set when persist() is called while a write is in flight */
+  private dirty = false
 
   /** Load cache from storage. Call once on startup. */
   async load(): Promise<void> {
@@ -140,12 +144,32 @@ export class AnalysisCache {
     console.debug(LOG_PREFIX, `Evicted ${toEvict.length} LRU entries`)
   }
 
-  private async persist(): Promise<void> {
-    try {
-      await chrome.storage.local.set({ [STORAGE_KEY]: this.store })
-    } catch (e) {
-      console.log(LOG_PREFIX, 'Failed to persist cache:', e)
+  /**
+   * Persist the store to chrome.storage.local.
+   *
+   * Serializes overlapping calls: if a write is already in flight, marks the
+   * store as dirty and reuses the in-flight promise. The current write will
+   * loop and re-write with the latest store after completing, so the latest
+   * state always reaches storage and concurrent set/setOne calls don't race.
+   */
+  private persist(): Promise<void> {
+    if (this.writePromise) {
+      this.dirty = true
+      return this.writePromise
     }
+    this.writePromise = this.runWriteLoop()
+    return this.writePromise.finally(() => { this.writePromise = null })
+  }
+
+  private async runWriteLoop(): Promise<void> {
+    do {
+      this.dirty = false
+      try {
+        await chrome.storage.local.set({ [STORAGE_KEY]: this.store })
+      } catch (e) {
+        console.log(LOG_PREFIX, 'Failed to persist cache:', e)
+      }
+    } while (this.dirty)
   }
 
   private nextAccessStamp(): number {
