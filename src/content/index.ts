@@ -1,5 +1,5 @@
 import './styles.css'
-import type { NoteData, AnalysisResult, FilterMode, LowQualityTag, CustomRule } from '@/shared/types'
+import type { NoteData, AnalysisResult, FilterMode, LowQualityTag } from '@/shared/types'
 import type { Message } from '@/shared/messaging'
 import { DEFAULT_CONFIG, mergeConfigWithDefaults } from '@/shared/constants'
 import { FeedObserver } from './observer'
@@ -17,38 +17,7 @@ const resultMap = new Map<string, AnalysisResult>()
 let enabled = true
 let filterMode: FilterMode = 'blur'
 let enabledTags: LowQualityTag[] = [...DEFAULT_CONFIG.enabledTags]
-let prefetchLimit: number = DEFAULT_CONFIG.prefetchLimit
-let keywordRules: Record<LowQualityTag, string[]> = { ...DEFAULT_CONFIG.keywordRules }
-let customRules: CustomRule[] = []
 
-/**
- * Local keyword matching — runs in content script, no round-trip to background.
- * Returns AnalysisResult if keyword matched, null otherwise.
- */
-function localKeywordMatch(noteId: string, title: string): AnalysisResult | null {
-  const lowerTitle = title.toLowerCase()
-
-  // Check built-in rules
-  for (const tag of enabledTags) {
-    for (const kw of keywordRules[tag] ?? []) {
-      if (lowerTitle.includes(kw.toLowerCase())) {
-        return { noteId, score: 20, isLowQuality: true, tags: [tag], reason: `关键词: ${kw}` }
-      }
-    }
-  }
-
-  // Check custom rules
-  for (const rule of customRules) {
-    if (!rule.enabled) continue
-    for (const kw of rule.keywords) {
-      if (lowerTitle.includes(kw.toLowerCase())) {
-        return { noteId, score: 20, isLowQuality: true, tags: [], reason: `关键词: ${kw}` }
-      }
-    }
-  }
-
-  return null
-}
 /** Set to true when extension context is invalidated (extension reloaded) */
 let dead = false
 
@@ -65,9 +34,6 @@ try {
       enabled = config.enabled
       filterMode = config.filterMode
       enabledTags = config.enabledTags
-      prefetchLimit = config.prefetchLimit
-      keywordRules = config.keywordRules
-      customRules = config.customRules
     }
   }).catch(() => { die() })
 } catch { die() }
@@ -227,19 +193,12 @@ try {
     enabled = config.enabled
     filterMode = config.filterMode
     enabledTags = config.enabledTags
-    prefetchLimit = config.prefetchLimit
-    keywordRules = config.keywordRules
-    customRules = config.customRules
 
     if (enabledChanged || modeChanged || tagsChanged) {
       rerenderAll()
     }
   })
 } catch { die() }
-
-// Feed API hook disabled — XHS CSP blocks all injection methods.
-// Analysis uses title + author + likeCount only.
-
 
 // ── Init ──────────────────────────────────────────
 

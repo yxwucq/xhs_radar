@@ -14,20 +14,11 @@
   "host_permissions": [
     "*://www.xiaohongshu.com/*"
   ],
-  "optional_host_permissions": [
-    "*://*/*"
-  ],
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
   },
   "content_scripts": [
-    {
-      "matches": ["*://www.xiaohongshu.com/*"],
-      "js": ["src/content/hook-loader.ts"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
     {
       "matches": ["*://www.xiaohongshu.com/*"],
       "js": ["src/content/index.ts"],
@@ -45,11 +36,5 @@
   "options_ui": {
     "page": "src/options/index.html",
     "open_in_tab": true
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["feed-hook.js"],
-      "matches": ["*://www.xiaohongshu.com/*"]
-    }
-  ]
+  }
 }
