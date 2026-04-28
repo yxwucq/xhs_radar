@@ -86,6 +86,27 @@ src/
 └── shared/           # 共享类型、常量、消息协议、Prompt
 ```
 
+## 更新日志
+
+### 0.2.0
+
+**新增**
+- **推荐配置 chips** — 在 Onboarding 和 Options 加入一键配置入口,内置智谱 GLM-4.7-FlashX、DeepSeek V4 Flash、Kimi K2.5 三个 OpenAI 兼容服务,点击自动填入 API Base URL、model 名称并启用"关闭模型思考模式"
+- **关闭模型思考模式 toggle** — Options API 配置区新增开关,开启后向请求体注入 `thinking: { type: "disabled" }`,适配 Kimi K2.6 / DeepSeek V4 等默认开启思考的模型,提升批量分析速度。若 endpoint 不接受该字段,gateway 会在收到 400 后自动 fallback,并在当前会话内对该 endpoint 不再注入
+- **API Key 失效全局提示** — 鉴权失败时,工具栏图标显示橙色 `!` 角标,Popup 顶部出现红色 banner 引导前往设置;Key 修复或下次成功调用后自动消除
+
+**修复**
+- 还原 manifest 的 `optional_host_permissions: ["*://*/*"]` —— 修复"测试 API 时没有授权弹窗、显示需要授权"的问题
+- 缓存写入串行化:消除 `set()` 和流式 `setOne()` 之间 `chrome.storage.local.set` 重叠写入的潜在竞态,LRU 状态不会丢失
+
+**优化**
+- 删除已禁用的 feed-hook 注入(MAIN-world content_script + web_accessible_resources)和 content script 内未使用的字段
+- LLM gateway 新增 retry / timeout / auth / fallback 等关键路径的单元测试,测试用例由 73 → 98
+
+### 0.1.0
+
+- 初始版本提交至 Chrome Web Store,包含 AI 内容分析、关键词预筛、模糊/隐藏过滤、详情深度分析、统计面板、自定义情景与规则等核心功能
+
 ## License
 
 MIT

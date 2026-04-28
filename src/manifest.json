@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "红薯雷达",
   "description": "小红书内容质量雷达 — 用 AI 识别低质内容，净化你的信息流",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icons": {
     "16": "assets/icons/icon16.png",
     "48": "assets/icons/icon48.png",
