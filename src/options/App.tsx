@@ -4,12 +4,14 @@ import {
   DEFAULT_CONFIG,
   DEFAULT_API_URLS,
   SUGGESTED_MODELS,
+  RECOMMENDED_PRESETS,
   TAG_LABELS,
   TAG_DESCRIPTIONS,
   applyScenarioToConfig,
   cloneScenario,
   mergeConfigWithDefaults,
 } from '@/shared/constants'
+import type { RecommendedPreset } from '@/shared/constants'
 
 const ALL_TAGS: LowQualityTag[] = [
   'anxiety', 'clickbait', 'misinformation', 'hidden_ad', 'emotional_manipulation',
@@ -191,6 +193,16 @@ export default function App() {
       }
       return syncScenarioIfEditable(next)
     })
+  }
+
+  function applyPreset(preset: RecommendedPreset) {
+    setConfig(prev => ({
+      ...prev,
+      llmProvider: preset.provider,
+      apiBaseUrl: preset.apiBaseUrl,
+      model: preset.model,
+      disableReasoning: preset.disableReasoning,
+    }))
   }
 
   function toggleTag(tag: LowQualityTag) {
@@ -750,6 +762,30 @@ export default function App() {
                     {p === 'openai' ? 'OpenAI Compatible' : 'Anthropic'}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Recommended presets */}
+            <div>
+              <Label text="推荐配置" />
+              <p className="text-[11px] text-muted mt-0.5 mb-1.5">一键填好下方的 URL 与模型</p>
+              <div className="flex flex-wrap gap-1.5">
+                {RECOMMENDED_PRESETS.map(preset => {
+                  const active = config.model === preset.model && config.apiBaseUrl === preset.apiBaseUrl
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyPreset(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] transition-all ${
+                        active
+                          ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                          : 'bg-sand/50 text-muted border border-transparent hover:border-sand'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 

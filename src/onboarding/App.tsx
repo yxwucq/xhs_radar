@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { UserConfig } from '@/shared/types'
-import { DEFAULT_CONFIG, DEFAULT_API_URLS, SUGGESTED_MODELS } from '@/shared/constants'
+import { DEFAULT_CONFIG, DEFAULT_API_URLS, SUGGESTED_MODELS, RECOMMENDED_PRESETS } from '@/shared/constants'
+import type { RecommendedPreset } from '@/shared/constants'
 
 export default function App() {
   const [step, setStep] = useState(0)
@@ -22,6 +23,21 @@ export default function App() {
         const provider = value as UserConfig['llmProvider']
         next.model = SUGGESTED_MODELS[provider][0]
         next.apiBaseUrl = ''
+      }
+      chrome.storage.local.set({ config: next })
+      chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: next }).catch(() => {})
+      return next
+    })
+  }
+
+  function applyPreset(preset: RecommendedPreset) {
+    setConfig(prev => {
+      const next: UserConfig = {
+        ...prev,
+        llmProvider: preset.provider,
+        apiBaseUrl: preset.apiBaseUrl,
+        model: preset.model,
+        disableReasoning: preset.disableReasoning,
       }
       chrome.storage.local.set({ config: next })
       chrome.runtime.sendMessage({ type: 'CONFIG_CHANGED', payload: next }).catch(() => {})
@@ -98,6 +114,7 @@ export default function App() {
             <StepApi
               config={config}
               updateConfig={updateConfig}
+              applyPreset={applyPreset}
               apiTest={apiTest}
               apiTestMsg={apiTestMsg}
               onTest={handleTestApi}
@@ -144,10 +161,11 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
 
 /* ─── Step 1: API Setup ─── */
 function StepApi({
-  config, updateConfig, apiTest, apiTestMsg, onTest, suggestions, defaultUrl, onNext, onSkip, onBack,
+  config, updateConfig, applyPreset, apiTest, apiTestMsg, onTest, suggestions, defaultUrl, onNext, onSkip, onBack,
 }: {
   config: UserConfig
   updateConfig: <K extends keyof UserConfig>(key: K, value: UserConfig[K]) => void
+  applyPreset: (preset: RecommendedPreset) => void
   apiTest: string; apiTestMsg: string; onTest: () => void
   suggestions: readonly string[]; defaultUrl: string
   onNext: () => void; onSkip: () => void; onBack: () => void
@@ -173,6 +191,29 @@ function StepApi({
               {p === 'openai' ? 'OpenAI Compatible' : 'Anthropic'}
             </button>
           ))}
+        </div>
+
+        {/* Recommended presets */}
+        <div>
+          <div className="text-[11px] text-muted mb-1.5">推荐配置（一键填好 URL 与模型）</div>
+          <div className="flex flex-wrap gap-1.5">
+            {RECOMMENDED_PRESETS.map(preset => {
+              const active = config.model === preset.model && config.apiBaseUrl === preset.apiBaseUrl
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => applyPreset(preset)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] transition-all ${
+                    active
+                      ? 'bg-amber-warm/15 text-amber-warm font-medium border border-amber-warm/30'
+                      : 'bg-sand/50 text-muted border border-transparent hover:border-sand'
+                  }`}
+                >
+                  {preset.name}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Base URL */}

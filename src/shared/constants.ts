@@ -111,6 +111,44 @@ export const SUGGESTED_MODELS = {
   anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
 } as const
 
+/** One-click presets for popular OpenAI-compatible services */
+export interface RecommendedPreset {
+  id: string
+  name: string
+  provider: 'openai' | 'anthropic'
+  model: string
+  apiBaseUrl: string
+  /** Whether to inject {thinking:{type:'disabled'}} for this provider by default */
+  disableReasoning: boolean
+}
+
+export const RECOMMENDED_PRESETS: RecommendedPreset[] = [
+  {
+    id: 'glm-flashx',
+    name: '智谱 GLM-4.7-FlashX',
+    provider: 'openai',
+    model: 'glm-4.7-flashx',
+    apiBaseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    disableReasoning: true,
+  },
+  {
+    id: 'deepseek-v4-flash',
+    name: 'DeepSeek V4 Flash',
+    provider: 'openai',
+    model: 'deepseek-v4-flash',
+    apiBaseUrl: 'https://api.deepseek.com/v1/chat/completions',
+    disableReasoning: true,
+  },
+  {
+    id: 'kimi-k2-5',
+    name: 'Kimi K2.5',
+    provider: 'openai',
+    model: 'kimi-k2.5',
+    apiBaseUrl: 'https://api.moonshot.ai/v1/chat/completions',
+    disableReasoning: true,
+  },
+]
+
 /** Category descriptions shown in UI */
 export const TAG_DESCRIPTIONS: Record<LowQualityTag, string> = {
   clickbait: '标题夸张、使用诱导词、悬念式标题',
