@@ -794,6 +794,26 @@ export default function App() {
               </datalist>
             </div>
 
+            {/* Disable reasoning toggle */}
+            <div className="flex items-start gap-3 pt-1">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-bark">关闭模型思考模式</div>
+                <div className="text-[11px] text-muted mt-0.5">
+                  适用于 Kimi、DeepSeek 等带默认思考的模型；遇到不支持的服务会自动跳过
+                </div>
+              </div>
+              <button
+                onClick={() => updateField('disableReasoning', !config.disableReasoning)}
+                className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 mt-0.5 ${
+                  config.disableReasoning ? 'bg-amber-warm' : 'bg-sand'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  config.disableReasoning ? 'translate-x-4' : ''
+                }`} />
+              </button>
+            </div>
+
             {/* Test API */}
             <div className="pt-2">
               <button

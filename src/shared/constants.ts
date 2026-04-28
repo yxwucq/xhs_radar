@@ -282,6 +282,7 @@ export function mergeConfigWithDefaults(stored?: Partial<UserConfig> | null): Us
     scenarios,
     quickScenarioIds: DEFAULT_QUICK_SCENARIO_IDS,
     prefetchLimit: 40,
+    disableReasoning: false,
   }
 
   const merged: UserConfig = {

@@ -157,4 +157,64 @@ describe('LLMGateway', () => {
     gw.updateConfig(configWith({ apiKey: 'new-key' }))
     expect(gw.getLastError()).toBeNull()
   })
+
+  it('passes disableReasoning to provider when configured', async () => {
+    const gw = new LLMGateway()
+    gw.updateConfig(configWith({ disableReasoning: true }))
+    mockAnalyze.mockResolvedValueOnce(okResults(makeNotes('n1')))
+
+    await gw.analyze(makeNotes('n1'), 50)
+
+    const passedOptions = mockAnalyze.mock.calls[0][3]
+    expect(passedOptions.disableReasoning).toBe(true)
+  })
+
+  it('falls back per endpoint on 400 with thinking field, then drops it for the session', async () => {
+    const gw = new LLMGateway()
+    gw.updateConfig(configWith({ disableReasoning: true, apiBaseUrl: 'https://api.deepseek.com' }))
+
+    // First call: server rejects thinking field with 400 → gateway retries without it
+    mockAnalyze
+      .mockRejectedValueOnce(new Error('OpenAI API error 400: unknown field thinking'))
+      .mockResolvedValueOnce(okResults(makeNotes('n1')))
+
+    const r1 = await gw.analyze(makeNotes('n1'), 50)
+    expect(r1[0].score).toBe(80)
+    expect(mockAnalyze).toHaveBeenCalledTimes(2)
+    // Initial call had the field on, retry had it off
+    expect(mockAnalyze.mock.calls[0][3].disableReasoning).toBe(true)
+    expect(mockAnalyze.mock.calls[1][3].disableReasoning).toBe(false)
+
+    // Second user request to the same endpoint: gateway has remembered, no injection at all
+    mockAnalyze.mockResolvedValueOnce(okResults(makeNotes('n2')))
+    await gw.analyze(makeNotes('n2'), 50)
+    expect(mockAnalyze).toHaveBeenCalledTimes(3)
+    expect(mockAnalyze.mock.calls[2][3].disableReasoning).toBe(false)
+  })
+
+  it('does not retry on 400 when disableReasoning is off', async () => {
+    const gw = new LLMGateway()
+    gw.updateConfig(configWith({ disableReasoning: false }))
+    mockAnalyze.mockRejectedValueOnce(new Error('OpenAI API error 400: bad input'))
+
+    const results = await gw.analyze(makeNotes('n1'), 50)
+    expect(mockAnalyze).toHaveBeenCalledTimes(1)
+    expect(results[0].reason).toBe('分析失败，默认放行')
+  })
+
+  it('clears endpointsWithoutThinking when baseUrl changes', async () => {
+    const gw = new LLMGateway()
+    gw.updateConfig(configWith({ disableReasoning: true, apiBaseUrl: 'https://api.deepseek.com' }))
+    mockAnalyze
+      .mockRejectedValueOnce(new Error('OpenAI API error 400: unknown field'))
+      .mockResolvedValueOnce(okResults(makeNotes('n1')))
+    await gw.analyze(makeNotes('n1'), 50) // marks deepseek as unsupported
+
+    // Switch endpoint — should re-attempt thinking on the new one
+    gw.updateConfig(configWith({ disableReasoning: true, apiBaseUrl: 'https://api.moonshot.ai/v1' }))
+    mockAnalyze.mockResolvedValueOnce(okResults(makeNotes('n2')))
+    await gw.analyze(makeNotes('n2'), 50)
+    const lastCallOptions = mockAnalyze.mock.calls[mockAnalyze.mock.calls.length - 1][3]
+    expect(lastCallOptions.disableReasoning).toBe(true)
+  })
 })

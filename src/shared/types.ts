@@ -74,6 +74,13 @@ export interface UserConfig {
   quickScenarioIds: string[]
   /** Max notes to pre-analyze from feed API (0 = unlimited) */
   prefetchLimit: number
+  /**
+   * Inject `thinking: { type: "disabled" }` into OpenAI-compatible requests.
+   * Recognized by Kimi K2.6, DeepSeek V4, and similar models that default to
+   * thinking on. Has no effect on official OpenAI / Anthropic.
+   * Falls back per endpoint within the session if the server rejects the field.
+   */
+  disableReasoning: boolean
 }
 
 export interface CustomRule {

@@ -17,7 +17,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   private buildRequest(notes: NoteInput[], sensitivity: number, options: AnalyzeOptions, stream: boolean) {
-    const { mode = 'detailed', customRules = [], promptHint = '' } = options
+    const { mode = 'detailed', customRules = [], promptHint = '', disableReasoning = false } = options
     const userPrompt = mode === 'lite' ? buildLiteBatchPrompt(notes) : buildBatchPrompt(notes)
     return {
       model: this.model,
@@ -27,6 +27,7 @@ export class OpenAIProvider implements LLMProvider {
       ],
       temperature: 0.1,
       ...(stream ? { stream: true } : {}),
+      ...(disableReasoning ? { thinking: { type: 'disabled' } } : {}),
     }
   }
 

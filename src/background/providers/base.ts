@@ -6,6 +6,11 @@ export interface AnalyzeOptions {
   mode?: 'detailed' | 'lite'
   customRules?: CustomRule[]
   promptHint?: string
+  /**
+   * When true, OpenAI-compatible providers inject {thinking:{type:"disabled"}}
+   * into the request body. Recognized by Kimi K2.6 / DeepSeek V4 etc.
+   */
+  disableReasoning?: boolean
 }
 
 /** Callback for streaming — called once per parsed result */

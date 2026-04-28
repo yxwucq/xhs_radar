@@ -3,6 +3,7 @@ import type { NoteInput } from '@/shared/messaging'
 import type { LLMProvider, AnalyzeOptions, OnPartialResult } from './providers/base'
 import { OpenAIProvider } from './providers/openai'
 import { AnthropicProvider } from './providers/anthropic'
+import { DEFAULT_API_URLS } from '@/shared/constants'
 
 const LOG_PREFIX = '[XHS Radar Gateway]'
 const MAX_CONCURRENT = 2
@@ -37,6 +38,13 @@ function isAuthError(error: unknown): boolean {
   return false
 }
 
+function isBadRequest(error: unknown): boolean {
+  if (error instanceof Error) {
+    return /error\s+400/i.test(error.message)
+  }
+  return false
+}
+
 export class LLMGateway {
   private activeRequests = 0
   private queue: Array<{
@@ -52,6 +60,10 @@ export class LLMGateway {
   private configHash = ''
   private lastError: LastLLMError | null = null
   private errorListener: ErrorListener | null = null
+  /** Endpoints (key = provider:url) that 400-rejected the thinking field this session */
+  private endpointsWithoutThinking = new Set<string>()
+  private currentEndpointKey = ''
+  private requestedDisableReasoning = false
 
   setErrorListener(listener: ErrorListener): void {
     this.errorListener = listener
@@ -71,12 +83,18 @@ export class LLMGateway {
   }
 
   updateConfig(config: UserConfig): void {
+    // disableReasoning can change without affecting provider identity, update unconditionally
+    this.requestedDisableReasoning = config.disableReasoning ?? false
+
     const hash = `${config.llmProvider}:${config.apiKey}:${config.model}:${config.apiBaseUrl}`
     if (hash === this.configHash) return
 
     this.configHash = hash
     // Clear sticky errors — user may have entered a new key
     this.updateLastError(null)
+    // Endpoint or provider changed: forget what we learned about old endpoints
+    this.endpointsWithoutThinking.clear()
+    this.currentEndpointKey = `${config.llmProvider}:${config.apiBaseUrl || DEFAULT_API_URLS[config.llmProvider]}`
 
     if (!config.apiKey) {
       this.provider = null
@@ -108,10 +126,19 @@ export class LLMGateway {
       return Promise.reject(new Error('LLM provider not configured. Set your API key in settings.'))
     }
 
+    const effective: AnalyzeOptions = {
+      ...options,
+      disableReasoning: this.effectiveDisableReasoning(),
+    }
+
     return new Promise((resolve, reject) => {
-      this.queue.push({ notes, sensitivity, options, onPartialResult, resolve, reject })
+      this.queue.push({ notes, sensitivity, options: effective, onPartialResult, resolve, reject })
       this.processQueue()
     })
+  }
+
+  private effectiveDisableReasoning(): boolean {
+    return this.requestedDisableReasoning && !this.endpointsWithoutThinking.has(this.currentEndpointKey)
   }
 
   private processQueue(): void {
@@ -167,6 +194,14 @@ export class LLMGateway {
         console.log(LOG_PREFIX, 'API key invalid or unauthorized:', msg)
         this.updateLastError({ type: 'auth', message: msg.slice(0, 200), timestamp: Date.now() })
         return fallbackResults(notes, 'API Key 无效')
+      }
+
+      // 400 with thinking field set: assume the endpoint doesn't accept it,
+      // remember per endpoint for the session, and retry without it.
+      if (options.disableReasoning && isBadRequest(error) && attempt === 0) {
+        console.warn(LOG_PREFIX, `Endpoint ${this.currentEndpointKey} rejected thinking field; falling back for the session`)
+        this.endpointsWithoutThinking.add(this.currentEndpointKey)
+        return this.executeWithRetry(notes, sensitivity, { ...options, disableReasoning: false }, undefined, attempt + 1)
       }
 
       // Retry without streaming (partial results may have been pushed already)
